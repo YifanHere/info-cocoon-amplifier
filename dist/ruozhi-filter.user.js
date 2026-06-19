@@ -1262,13 +1262,13 @@
     items.forEach((el) => {
       const info = extractComment(el);
       if (!info) return;
+      injectManualBlacklistButton(el, info);
       if (scannedRpids.has(info.rpid)) return;
       scannedRpids.add(info.rpid);
       found++;
       const config = getConfig();
       if (!config.enableAI && !config.enableBlacklist) return;
       pendingBatch.push(info);
-      injectManualBlacklistButton(el, info);
     });
     if (found > 0) {
       if (pendingBatch.length >= 20) flushBatch();

@@ -397,15 +397,16 @@ function scanPage(): void {
   items.forEach((el) => {
     const info = extractComment(el);
     if (!info) return;
+
+    // 注入手动拉黑按钮（在 rpid 检查前，切换排序时 DOM 重建也能注入）
+    injectManualBlacklistButton(el, info);
+
     if (scannedRpids.has(info.rpid)) return;
     scannedRpids.add(info.rpid);
     found++;
     const config = getConfig();
     if (!config.enableAI && !config.enableBlacklist) return;
     pendingBatch.push(info);
-
-    // 注入手动拉黑按钮
-    injectManualBlacklistButton(el, info);
   });
 
   if (found > 0) {

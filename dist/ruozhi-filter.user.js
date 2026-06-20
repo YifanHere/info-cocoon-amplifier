@@ -24,25 +24,33 @@
     enableAI: true,
     enableBlacklist: true,
     blacklistStrictness: 1,
-    pricePerMToken: 1.1
+    pricePerMToken: 1.1,
+    sendUname: false,
+    sendMid: false,
+    sendVideoDesc: false,
+    filterDimensions: `- **性别对立**：将某一性别标签化、污名化，煽动敌视/仇恨（如"女人都拜金""男人都好色"）
+- **人身攻击**：针对个人的侮辱、谩骂、诅咒
+- **引战/煽动**：故意挑起争端，使用极端化言论
+- **降智煽动**：以偏概全、简化认知、传播刻板印象的明显反智言论
+- **仇恨言论**：涉及种族、地域、性别、性取向等的歧视性言论`
   };
   const TAG$2 = "[ruozhi-filter]";
   function buildSystemPrompt(config, ctx) {
+    let ctxBlock = `视频标题：${ctx.videoTitle}`;
+    if (config.sendVideoDesc) {
+      ctxBlock += `
+视频简介：${ctx.videoDesc.slice(0, 300)}`;
+    }
     return `你是一个评论净化判官。你的任务是严格根据用户的过滤规则，判断每条评论是否违规。
 
 ## 判定标准
-用户的过滤规则：${config.prompt}
+用户过滤规则：${config.prompt}
 
 违规判定维度：
-- **性别对立**：将某一性别标签化、污名化，煽动敌视/仇恨（如"女人都拜金""男人都好色"）
-- **人身攻击**：针对个人的侮辱、谩骂、诅咒
-- **引战/煽动**：故意挑起争端，使用极端化言论
-- **低文化水平煽动**：以偏概全、简化认知、传播刻板印象的明显反智言论
-- **仇恨言论**：涉及种族、地域、性别、性取向等的歧视性言论
+${config.filterDimensions}
 
 ## 上下文
-视频标题：${ctx.videoTitle}
-视频简介：${ctx.videoDesc.slice(0, 500)}
+${ctxBlock}
 
 ## 输出要求
 返回一个JSON对象，格式如下（不要包含任何markdown标记，只输出纯JSON）：
@@ -55,20 +63,35 @@
 - severity 可选值: "none", "low", "medium", "high", "block"
 - 只返回违规的评论（violation=true），没有违规则返回空数组`;
   }
-  function buildUserMessage(replies) {
-    const comments = replies.map((r) => ({
-      rpid: r.rpid,
-      mid: r.mid,
-      uname: r.member.uname,
-      content: r.content.message
-    }));
-    return JSON.stringify(comments, null, 2);
+  function buildUserMessage(config, replies) {
+    const comments = replies.map((r) => {
+      const item = {
+        rpid: r.rpid,
+        content: r.content.message
+      };
+      if (config.sendMid) item.mid = r.mid;
+      if (config.sendUname) item.uname = r.member.uname;
+      return item;
+    });
+    return JSON.stringify(comments);
   }
   async function batchJudge(config, replies, ctx) {
     var _a, _b, _c;
     if (!config.apiKey || replies.length === 0) return { verdicts: [] };
     const systemPrompt = buildSystemPrompt(config, ctx);
-    const userMessage = buildUserMessage(replies);
+    const userMessage = buildUserMessage(config, replies);
+    console.log(
+      TAG$2,
+      "📤 请求体:",
+      JSON.stringify({
+        model: config.model,
+        systemPrompt,
+        userMessage: JSON.parse(userMessage),
+        temperature: 0.1,
+        max_tokens: 4096,
+        response_format: { type: "json_object" }
+      })
+    );
     const fetchStart = Date.now();
     const fetcher = typeof unsafeWindow !== "undefined" ? unsafeWindow.fetch : window.fetch;
     try {
@@ -677,6 +700,12 @@
     </div>
 
     <div style="margin-bottom:12px">
+      <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">🎯 违规判定维度</label>
+      <textarea id="ruozhi-dimensions" rows="5"
+        style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;resize:vertical;box-sizing:border-box;font-family:monospace">${escapeHtml(config.filterDimensions)}</textarea>
+    </div>
+
+    <div style="margin-bottom:12px">
       <label style="font-size:12px;color:#666;display:flex;align-items:center;gap:8px;cursor:pointer">
         <input id="ruozhi-enable-ai" type="checkbox" ${config.enableAI ? "checked" : ""}>
         启用 AI 过滤
@@ -701,6 +730,26 @@
       <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">💰 Token单价 (元/百万)</label>
       <input id="ruozhi-price" type="number" value="${config.pricePerMToken}" step="0.1" min="0"
         style="width:100px;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box">
+    </div>
+
+    <div style="margin-bottom:8px;font-size:12px;color:#999;font-weight:600">📦 请求内容控制（关闭可节省Token）</div>
+    <div style="margin-bottom:8px">
+      <label style="font-size:12px;color:#666;display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input id="ruozhi-send-uname" type="checkbox" ${config.sendUname ? "checked" : ""}>
+        附带用户名 (uname)
+      </label>
+    </div>
+    <div style="margin-bottom:8px">
+      <label style="font-size:12px;color:#666;display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input id="ruozhi-send-mid" type="checkbox" ${config.sendMid ? "checked" : ""}>
+        附带用户ID (mid)
+      </label>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;color:#666;display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input id="ruozhi-send-videodesc" type="checkbox" ${config.sendVideoDesc ? "checked" : ""}>
+        附带视频简介
+      </label>
     </div>
 
     <div style="display:flex;gap:8px;margin-top:16px">
@@ -775,7 +824,7 @@
       });
     });
     (_a = root.querySelector("#ruozhi-save")) == null ? void 0 : _a.addEventListener("click", () => {
-      var _a2, _b2, _c2, _d2, _e, _f, _g;
+      var _a2, _b2, _c2, _d2, _e, _f, _g, _h, _i, _j, _k;
       const newConfig = {
         ...config,
         apiKey: ((_a2 = root.querySelector("#ruozhi-apikey")) == null ? void 0 : _a2.value) ?? "",
@@ -786,7 +835,11 @@
         enableBlacklist: ((_f = root.querySelector("#ruozhi-enable-bl")) == null ? void 0 : _f.checked) ?? true,
         pricePerMToken: parseFloat(
           ((_g = root.querySelector("#ruozhi-price")) == null ? void 0 : _g.value) || "1.1"
-        ) || 1.1
+        ) || 1.1,
+        sendUname: ((_h = root.querySelector("#ruozhi-send-uname")) == null ? void 0 : _h.checked) ?? false,
+        sendMid: ((_i = root.querySelector("#ruozhi-send-mid")) == null ? void 0 : _i.checked) ?? false,
+        sendVideoDesc: ((_j = root.querySelector("#ruozhi-send-videodesc")) == null ? void 0 : _j.checked) ?? false,
+        filterDimensions: ((_k = root.querySelector("#ruozhi-dimensions")) == null ? void 0 : _k.value) ?? config.filterDimensions
       };
       saveConfig(newConfig);
       onConfigChange(newConfig);
@@ -1026,7 +1079,15 @@
       enableAI: true,
       enableBlacklist: true,
       blacklistStrictness: 1,
-      pricePerMToken: 1.1
+      pricePerMToken: 1.1,
+      sendUname: false,
+      sendMid: false,
+      sendVideoDesc: false,
+      filterDimensions: `- **性别对立**：将某一性别标签化、污名化，煽动敌视/仇恨（如"女人都拜金""男人都好色"）
+- **人身攻击**：针对个人的侮辱、谩骂、诅咒
+- **引战/煽动**：故意挑起争端，使用极端化言论
+- **降智煽动**：以偏概全、简化认知、传播刻板印象的明显反智言论
+- **仇恨言论**：涉及种族、地域、性别、性取向等的歧视性言论`
     };
   };
   function refreshConfig(cfg) {
@@ -1262,13 +1323,13 @@
     items.forEach((el) => {
       const info = extractComment(el);
       if (!info) return;
-      injectManualBlacklistButton(el, info);
       if (scannedRpids.has(info.rpid)) return;
       scannedRpids.add(info.rpid);
       found++;
       const config = getConfig();
       if (!config.enableAI && !config.enableBlacklist) return;
       pendingBatch.push(info);
+      injectManualBlacklistButton(el, info);
     });
     if (found > 0) {
       if (pendingBatch.length >= 20) flushBatch();
@@ -1276,55 +1337,83 @@
     }
   }
   const blacklistButtonInjected = /* @__PURE__ */ new WeakSet();
+  const BL_BTN_STYLE = {
+    position: "absolute",
+    top: "6px",
+    right: "8px",
+    zIndex: "10",
+    opacity: "0",
+    padding: "1px 8px",
+    fontSize: "11px",
+    color: "#aaa",
+    background: "rgba(255,255,255,0.92)",
+    border: "1px solid #e8e8e8",
+    borderRadius: "10px",
+    cursor: "pointer",
+    transition: "opacity 0.2s, color 0.15s, border-color 0.15s",
+    userSelect: "none",
+    fontFamily: "system-ui, -apple-system, sans-serif",
+    lineHeight: "18px",
+    whiteSpace: "nowrap",
+    backdropFilter: "blur(2px)"
+  };
+  const BL_BTN_HOVER = {
+    color: "#d9534f",
+    borderColor: "#d9534f",
+    background: "#fff5f5",
+    opacity: "1"
+  };
+  const BL_BTN_DONE = {
+    color: "#d9534f",
+    borderColor: "#f5c6cb",
+    background: "#fff0f0",
+    opacity: "1",
+    cursor: "default"
+  };
+  function applyStyles(el, styles) {
+    for (const [k, v] of Object.entries(styles)) {
+      el.style[k] = v;
+    }
+  }
   function injectManualBlacklistButton(el, info) {
     if (blacklistButtonInjected.has(el)) return;
     blacklistButtonInjected.add(el);
-    const parent = el.parentNode;
-    if (!parent) return;
-    const btn = document.createElement("span");
+    if (!(el instanceof HTMLElement)) return;
+    const computed = getComputedStyle(el);
+    if (computed.position === "static") {
+      el.style.position = "relative";
+    }
+    const btn = document.createElement("button");
     btn.textContent = "🚫 拉黑";
-    btn.title = "将 " + info.uname + " 加入黑名单";
-    Object.assign(btn.style, {
-      position: "relative",
-      zIndex: "1",
-      float: "right",
-      marginTop: "4px",
-      marginRight: "4px",
-      padding: "1px 8px",
-      fontSize: "11px",
-      color: "#aaa",
-      background: "rgba(255,255,255,0.88)",
-      border: "1px solid #e0e0e0",
-      borderRadius: "10px",
-      cursor: "pointer",
-      userSelect: "none",
-      fontFamily: "system-ui, -apple-system, sans-serif",
-      lineHeight: "18px",
-      boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-      transition: "color 0.15s, border-color 0.15s, background 0.15s, box-shadow 0.15s"
+    btn.title = `将 ${info.uname} 加入黑名单`;
+    applyStyles(btn, BL_BTN_STYLE);
+    el.appendChild(btn);
+    let isDone = false;
+    el.addEventListener("mouseenter", () => {
+      if (isDone) return;
+      btn.style.opacity = "1";
     });
-    btn.addEventListener("mouseenter", () => {
-      if (btn.dataset.done === "1") return;
-      Object.assign(btn.style, {
-        color: "#d9534f",
-        borderColor: "#d9534f",
-        background: "#fff5f5",
-        boxShadow: "0 1px 4px rgba(217,83,79,0.15)"
-      });
+    el.addEventListener("mouseleave", () => {
+      if (isDone) return;
+      btn.style.opacity = "0";
     });
-    btn.addEventListener("mouseleave", () => {
-      if (btn.dataset.done === "1") return;
-      Object.assign(btn.style, {
-        color: "#aaa",
-        borderColor: "#e0e0e0",
-        background: "rgba(255,255,255,0.88)",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.06)"
-      });
+    btn.addEventListener("mouseenter", (e) => {
+      e.stopPropagation();
+      if (!isDone) applyStyles(btn, BL_BTN_HOVER);
+    });
+    btn.addEventListener("mouseleave", (e) => {
+      e.stopPropagation();
+      if (!isDone) applyStyles(btn, BL_BTN_STYLE);
     });
     btn.addEventListener("click", async (e) => {
       e.stopPropagation();
       e.preventDefault();
-      if (!confirm('确定要将用户 "' + info.uname + '" 加入黑名单吗？\n该用户的所有评论将被隐藏。')) return;
+      if (!confirm(
+        `确定要将用户 "${info.uname}" 加入黑名单吗？
+该用户的所有评论将被隐藏。`
+      )) {
+        return;
+      }
       try {
         const config = getConfig();
         await addToBlacklist({
@@ -1339,26 +1428,19 @@
           severity: "block",
           source: "manual"
         });
-        console.log(TAG, "🚫 手动拉黑: " + info.uname);
+        console.log(TAG, `🚫 手动拉黑: ${info.uname}`);
         if (config.foldMode) {
           foldEl(el, info, { reason: "[手动拉黑]", severity: "block" });
         } else {
           hideEl(el);
         }
-        btn.dataset.done = "1";
+        isDone = true;
         btn.textContent = "✅ 已拉黑";
-        Object.assign(btn.style, {
-          color: "#d9534f",
-          borderColor: "#f5c6cb",
-          background: "#fff0f0",
-          boxShadow: "none",
-          cursor: "default"
-        });
+        applyStyles(btn, BL_BTN_DONE);
       } catch (err) {
         console.error(TAG, "❌ 手动拉黑失败:", err);
       }
     });
-    parent.insertBefore(btn, el);
   }
   function extractComment(el) {
     var _a;

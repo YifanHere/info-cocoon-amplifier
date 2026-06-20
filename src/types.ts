@@ -62,6 +62,14 @@ export interface FilterConfig {
   blacklistStrictness: number;
   /** 自定义token单价 (元/百万token) */
   pricePerMToken: number;
+  /** 发送请求时附带用户名 */
+  sendUname: boolean;
+  /** 发送请求时附带用户mid */
+  sendMid: boolean;
+  /** 发送请求时附带视频简介 */
+  sendVideoDesc: boolean;
+  /** 自定义违规判定维度 */
+  filterDimensions: string;
 }
 
 /** AI判定结果: 单条评论的违规判定 */
@@ -140,4 +148,12 @@ export const DEFAULT_CONFIG: FilterConfig = {
   enableBlacklist: true,
   blacklistStrictness: 1,
   pricePerMToken: 1.1,
+  sendUname: false,
+  sendMid: false,
+  sendVideoDesc: false,
+  filterDimensions: `- **性别对立**：将某一性别标签化、污名化，煽动敌视/仇恨（如"女人都拜金""男人都好色"）
+- **人身攻击**：针对个人的侮辱、谩骂、诅咒
+- **引战/煽动**：故意挑起争端，使用极端化言论
+- **降智煽动**：以偏概全、简化认知、传播刻板印象的明显反智言论
+- **仇恨言论**：涉及种族、地域、性别、性取向等的歧视性言论`,
 };

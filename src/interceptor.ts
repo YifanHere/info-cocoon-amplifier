@@ -54,6 +54,14 @@ let getConfig = (): FilterConfig => {
     enableBlacklist: true,
     blacklistStrictness: 1,
     pricePerMToken: 1.1,
+    sendUname: false,
+    sendMid: false,
+    sendVideoDesc: false,
+    filterDimensions: `- **性别对立**：将某一性别标签化、污名化，煽动敌视/仇恨（如"女人都拜金""男人都好色"）
+- **人身攻击**：针对个人的侮辱、谩骂、诅咒
+- **引战/煽动**：故意挑起争端，使用极端化言论
+- **降智煽动**：以偏概全、简化认知、传播刻板印象的明显反智言论
+- **仇恨言论**：涉及种族、地域、性别、性取向等的歧视性言论`,
   };
 };
 export function refreshConfig(cfg: FilterConfig): void {
@@ -397,16 +405,15 @@ function scanPage(): void {
   items.forEach((el) => {
     const info = extractComment(el);
     if (!info) return;
-
-    // 注入手动拉黑按钮（在 rpid 检查前，切换排序时 DOM 重建也能注入）
-    injectManualBlacklistButton(el, info);
-
     if (scannedRpids.has(info.rpid)) return;
     scannedRpids.add(info.rpid);
     found++;
     const config = getConfig();
     if (!config.enableAI && !config.enableBlacklist) return;
     pendingBatch.push(info);
+
+    // 注入手动拉黑按钮
+    injectManualBlacklistButton(el, info);
   });
 
   if (found > 0) {
@@ -417,73 +424,129 @@ function scanPage(): void {
 
 // ────────── 手动拉黑功能 ──────────
 
+/** 已注入拉黑按钮的元素集合（避免重复注入） */
 const blacklistButtonInjected = new WeakSet<Element>();
 
-// 仿照 foldEl：兄弟节点插在 el 前面，float:right 贴右
+/** 按钮默认样式（全内联，不依赖任何CSS文件/ShadowDOM穿透） */
+const BL_BTN_STYLE: Partial<CSSStyleDeclaration> = {
+  position: "absolute",
+  top: "6px",
+  right: "8px",
+  zIndex: "10",
+  opacity: "0",
+  padding: "1px 8px",
+  fontSize: "11px",
+  color: "#aaa",
+  background: "rgba(255,255,255,0.92)",
+  border: "1px solid #e8e8e8",
+  borderRadius: "10px",
+  cursor: "pointer",
+  transition: "opacity 0.2s, color 0.15s, border-color 0.15s",
+  userSelect: "none",
+  fontFamily: "system-ui, -apple-system, sans-serif",
+  lineHeight: "18px",
+  whiteSpace: "nowrap",
+  backdropFilter: "blur(2px)",
+};
+
+const BL_BTN_HOVER: Partial<CSSStyleDeclaration> = {
+  color: "#d9534f",
+  borderColor: "#d9534f",
+  background: "#fff5f5",
+  opacity: "1",
+};
+
+const BL_BTN_DONE: Partial<CSSStyleDeclaration> = {
+  color: "#d9534f",
+  borderColor: "#f5c6cb",
+  background: "#fff0f0",
+  opacity: "1",
+  cursor: "default",
+};
+
+function applyStyles(
+  el: HTMLElement,
+  styles: Partial<CSSStyleDeclaration>,
+): void {
+  for (const [k, v] of Object.entries(styles)) {
+    (el.style as any)[k] = v;
+  }
+}
+
+/**
+ * 注入手动拉黑按钮：作为 el 的子节点，absolute 定位在右上角。
+ * 给 el 加 position:relative，不包裹、不修改父容器。
+ */
 function injectManualBlacklistButton(el: Element, info: PendingComment): void {
   if (blacklistButtonInjected.has(el)) return;
   blacklistButtonInjected.add(el);
 
-  const parent = el.parentNode;
-  if (!parent) return;
+  if (!(el instanceof HTMLElement)) return;
 
-  const btn = document.createElement("span");
+  // 给评论元素自身加 relative（只建定位上下文，不影响布局）
+  const computed = getComputedStyle(el);
+  if (computed.position === "static") {
+    el.style.position = "relative";
+  }
+
+  // ── 拉黑按钮（全内联样式，absolute 相对于 el 定位） ──
+  const btn = document.createElement("button");
   btn.textContent = "🚫 拉黑";
-  btn.title = "将 " + info.uname + " 加入黑名单";
+  btn.title = `将 ${info.uname} 加入黑名单`;
+  applyStyles(btn, BL_BTN_STYLE);
 
-  Object.assign(btn.style, {
-    position: "relative",
-    zIndex: "1",
-    float: "right",
-    marginTop: "4px",
-    marginRight: "4px",
-    padding: "1px 8px",
-    fontSize: "11px",
-    color: "#aaa",
-    background: "rgba(255,255,255,0.88)",
-    border: "1px solid #e0e0e0",
-    borderRadius: "10px",
-    cursor: "pointer",
-    userSelect: "none",
-    fontFamily: "system-ui, -apple-system, sans-serif",
-    lineHeight: "18px",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-    transition: "color 0.15s, border-color 0.15s, background 0.15s, box-shadow 0.15s",
+  el.appendChild(btn);
+
+  // ── hover 效果（按钮是 el 的子节点，事件自然覆盖） ──
+  let isDone = false;
+
+  el.addEventListener("mouseenter", () => {
+    if (isDone) return;
+    btn.style.opacity = "1";
+  });
+  el.addEventListener("mouseleave", () => {
+    if (isDone) return;
+    btn.style.opacity = "0";
   });
 
-  btn.addEventListener("mouseenter", () => {
-    if (btn.dataset.done === "1") return;
-    Object.assign(btn.style, {
-      color: "#d9534f",
-      borderColor: "#d9534f",
-      background: "#fff5f5",
-      boxShadow: "0 1px 4px rgba(217,83,79,0.15)",
-    });
+  btn.addEventListener("mouseenter", (e) => {
+    e.stopPropagation();
+    if (!isDone) applyStyles(btn, BL_BTN_HOVER);
   });
-  btn.addEventListener("mouseleave", () => {
-    if (btn.dataset.done === "1") return;
-    Object.assign(btn.style, {
-      color: "#aaa",
-      borderColor: "#e0e0e0",
-      background: "rgba(255,255,255,0.88)",
-      boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-    });
+  btn.addEventListener("mouseleave", (e) => {
+    e.stopPropagation();
+    if (!isDone) applyStyles(btn, BL_BTN_STYLE);
   });
 
+  // ── 点击拉黑 ──
   btn.addEventListener("click", async (e) => {
     e.stopPropagation();
     e.preventDefault();
-    if (!confirm("确定要将用户 \"" + info.uname + "\" 加入黑名单吗？\n该用户的所有评论将被隐藏。")) return;
+
+    if (
+      !confirm(
+        `确定要将用户 "${info.uname}" 加入黑名单吗？\n该用户的所有评论将被隐藏。`,
+      )
+    ) {
+      return;
+    }
 
     try {
       const config = getConfig();
       await addToBlacklist({
-        mid: info.mid, uname: info.uname, rpid: info.rpid, message: info.message,
-        reason: "[手动拉黑]", videoTitle: currentContext.videoTitle,
-        videoUrl: window.location.href, timestamp: Date.now(),
-        severity: "block", source: "manual",
+        mid: info.mid,
+        uname: info.uname,
+        rpid: info.rpid,
+        message: info.message,
+        reason: "[手动拉黑]",
+        videoTitle: currentContext.videoTitle,
+        videoUrl: window.location.href,
+        timestamp: Date.now(),
+        severity: "block",
+        source: "manual",
       });
-      console.log(TAG, "🚫 手动拉黑: " + info.uname);
+
+      console.log(TAG, `🚫 手动拉黑: ${info.uname}`);
 
       if (config.foldMode) {
         foldEl(el, info, { reason: "[手动拉黑]", severity: "block" });
@@ -491,21 +554,13 @@ function injectManualBlacklistButton(el: Element, info: PendingComment): void {
         hideEl(el);
       }
 
-      btn.dataset.done = "1";
+      isDone = true;
       btn.textContent = "✅ 已拉黑";
-      Object.assign(btn.style, {
-        color: "#d9534f",
-        borderColor: "#f5c6cb",
-        background: "#fff0f0",
-        boxShadow: "none",
-        cursor: "default",
-      });
+      applyStyles(btn, BL_BTN_DONE);
     } catch (err) {
       console.error(TAG, "❌ 手动拉黑失败:", err);
     }
   });
-
-  parent.insertBefore(btn, el);
 }
 
 /** 从 DOM 节点提取评论信息 */

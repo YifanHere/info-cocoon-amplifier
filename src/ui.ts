@@ -220,6 +220,12 @@ function buildPanelHTML(config: FilterConfig): string {
     </div>
 
     <div style="margin-bottom:12px">
+      <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">🎯 违规判定维度</label>
+      <textarea id="ruozhi-dimensions" rows="5"
+        style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;resize:vertical;box-sizing:border-box;font-family:monospace">${escapeHtml(config.filterDimensions)}</textarea>
+    </div>
+
+    <div style="margin-bottom:12px">
       <label style="font-size:12px;color:#666;display:flex;align-items:center;gap:8px;cursor:pointer">
         <input id="ruozhi-enable-ai" type="checkbox" ${config.enableAI ? "checked" : ""}>
         启用 AI 过滤
@@ -244,6 +250,26 @@ function buildPanelHTML(config: FilterConfig): string {
       <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">💰 Token单价 (元/百万)</label>
       <input id="ruozhi-price" type="number" value="${config.pricePerMToken}" step="0.1" min="0"
         style="width:100px;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box">
+    </div>
+
+    <div style="margin-bottom:8px;font-size:12px;color:#999;font-weight:600">📦 请求内容控制（关闭可节省Token）</div>
+    <div style="margin-bottom:8px">
+      <label style="font-size:12px;color:#666;display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input id="ruozhi-send-uname" type="checkbox" ${config.sendUname ? "checked" : ""}>
+        附带用户名 (uname)
+      </label>
+    </div>
+    <div style="margin-bottom:8px">
+      <label style="font-size:12px;color:#666;display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input id="ruozhi-send-mid" type="checkbox" ${config.sendMid ? "checked" : ""}>
+        附带用户ID (mid)
+      </label>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;color:#666;display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input id="ruozhi-send-videodesc" type="checkbox" ${config.sendVideoDesc ? "checked" : ""}>
+        附带视频简介
+      </label>
     </div>
 
     <div style="display:flex;gap:8px;margin-top:16px">
@@ -357,6 +383,18 @@ function bindPanelEvents(
           (root.querySelector("#ruozhi-price") as HTMLInputElement)?.value ||
             "1.1",
         ) || 1.1,
+      sendUname:
+        (root.querySelector("#ruozhi-send-uname") as HTMLInputElement)
+          ?.checked ?? false,
+      sendMid:
+        (root.querySelector("#ruozhi-send-mid") as HTMLInputElement)?.checked ??
+        false,
+      sendVideoDesc:
+        (root.querySelector("#ruozhi-send-videodesc") as HTMLInputElement)
+          ?.checked ?? false,
+      filterDimensions:
+        (root.querySelector("#ruozhi-dimensions") as HTMLTextAreaElement)
+          ?.value ?? config.filterDimensions,
     };
     saveConfig(newConfig);
     onConfigChange(newConfig);

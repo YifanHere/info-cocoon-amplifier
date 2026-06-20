@@ -12,21 +12,22 @@ import type {
 const TAG = "[ruozhi-filter]";
 
 function buildSystemPrompt(config: FilterConfig, ctx: ReplyContext): string {
+  let ctxBlock = `视频标题：${ctx.videoTitle}`;
+  if (config.sendVideoDesc) {
+    ctxBlock += `
+视频简介：${ctx.videoDesc.slice(0, 300)}`;
+  }
+
   return `你是一个评论净化判官。你的任务是严格根据用户的过滤规则，判断每条评论是否违规。
 
 ## 判定标准
-用户的过滤规则：${config.prompt}
+用户过滤规则：${config.prompt}
 
 违规判定维度：
-- **性别对立**：将某一性别标签化、污名化，煽动敌视/仇恨（如"女人都拜金""男人都好色"）
-- **人身攻击**：针对个人的侮辱、谩骂、诅咒
-- **引战/煽动**：故意挑起争端，使用极端化言论
-- **低文化水平煽动**：以偏概全、简化认知、传播刻板印象的明显反智言论
-- **仇恨言论**：涉及种族、地域、性别、性取向等的歧视性言论
+${config.filterDimensions}
 
 ## 上下文
-视频标题：${ctx.videoTitle}
-视频简介：${ctx.videoDesc.slice(0, 500)}
+${ctxBlock}
 
 ## 输出要求
 返回一个JSON对象，格式如下（不要包含任何markdown标记，只输出纯JSON）：
@@ -40,14 +41,17 @@ function buildSystemPrompt(config: FilterConfig, ctx: ReplyContext): string {
 - 只返回违规的评论（violation=true），没有违规则返回空数组`;
 }
 
-function buildUserMessage(replies: BiliReply[]): string {
-  const comments = replies.map((r) => ({
-    rpid: r.rpid,
-    mid: r.mid,
-    uname: r.member.uname,
-    content: r.content.message,
-  }));
-  return JSON.stringify(comments, null, 2);
+function buildUserMessage(config: FilterConfig, replies: BiliReply[]): string {
+  const comments = replies.map((r) => {
+    const item: Record<string, unknown> = {
+      rpid: r.rpid,
+      content: r.content.message,
+    };
+    if (config.sendMid) item.mid = r.mid;
+    if (config.sendUname) item.uname = r.member.uname;
+    return item;
+  });
+  return JSON.stringify(comments);
 }
 
 /** 调用 DeepSeek API 批量判定 */
@@ -59,7 +63,20 @@ export async function batchJudge(
   if (!config.apiKey || replies.length === 0) return { verdicts: [] };
 
   const systemPrompt = buildSystemPrompt(config, ctx);
-  const userMessage = buildUserMessage(replies);
+  const userMessage = buildUserMessage(config, replies);
+
+  console.log(
+    TAG,
+    "📤 请求体:",
+    JSON.stringify({
+      model: config.model,
+      systemPrompt,
+      userMessage: JSON.parse(userMessage),
+      temperature: 0.1,
+      max_tokens: 4096,
+      response_format: { type: "json_object" },
+    }),
+  );
 
   const fetchStart = Date.now();
 

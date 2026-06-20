@@ -977,15 +977,15 @@ ${ctxBlock}
       var _a, _b;
       for (const child of node.children) {
         const el = child;
-        const t = ((_a = el.innerText) == null ? void 0 : _a.trim()) || ((_b = el.textContent) == null ? void 0 : _b.trim()) || "";
-        if (t === text) return el;
+        if ((((_a = el.innerText) == null ? void 0 : _a.trim()) || ((_b = el.textContent) == null ? void 0 : _b.trim()) || "") === text)
+          return el;
         if (el.shadowRoot) {
-          const found = walk(el.shadowRoot);
-          if (found) return found;
+          const f = walk(el.shadowRoot);
+          if (f) return f;
         }
         if (el.children.length > 0) {
-          const found = walk(el);
-          if (found) return found;
+          const f = walk(el);
+          if (f) return f;
         }
       }
       return null;
@@ -994,10 +994,10 @@ ${ctxBlock}
       root instanceof Element ? root.shadowRoot ?? root : root
     );
   }
-  function showToast(msg, duration = 2500) {
-    const toast = document.createElement("div");
-    toast.textContent = msg;
-    Object.assign(toast.style, {
+  function showToast(msg, d = 2500) {
+    const t = document.createElement("div");
+    t.textContent = msg;
+    Object.assign(t.style, {
       position: "fixed",
       bottom: "60px",
       left: "50%",
@@ -1012,47 +1012,50 @@ ${ctxBlock}
       pointerEvents: "none",
       transition: "opacity 0.3s"
     });
-    document.body.appendChild(toast);
+    document.body.appendChild(t);
     setTimeout(() => {
-      toast.style.opacity = "0";
-      setTimeout(() => toast.remove(), 300);
-    }, duration);
+      t.style.opacity = "0";
+      setTimeout(() => t.remove(), 300);
+    }, d);
   }
-  function waitFor(checker, timeoutMs) {
-    return new Promise((resolve) => {
-      const start = Date.now();
-      const check = () => {
-        if (checker()) return resolve(true);
-        if (Date.now() - start > timeoutMs) return resolve(false);
-        requestAnimationFrame(check);
+  function waitFor(cb, ms) {
+    return new Promise((r) => {
+      const s = Date.now();
+      const c = () => {
+        if (cb()) r(true);
+        else if (Date.now() - s > ms) r(false);
+        else requestAnimationFrame(c);
       };
-      check();
+      c();
     });
   }
-  function deepFind(root, selector) {
-    const el = root.querySelector(selector);
-    if (el) return el;
-    for (const child of root.children) {
-      const c = child;
-      if (c.shadowRoot) {
-        const found = deepFind(c.shadowRoot, selector);
-        if (found) return found;
+  function deepFind(root, sel) {
+    const e = root.querySelector(sel);
+    if (e) return e;
+    for (const c of root.children) {
+      const ce = c;
+      if (ce.shadowRoot) {
+        const f = deepFind(ce.shadowRoot, sel);
+        if (f) return f;
       }
     }
     return null;
+  }
+  function findCommentRenderer(el) {
+    const rootNode = el.getRootNode();
+    const shadowHost = rootNode instanceof ShadowRoot ? rootNode.host : null;
+    if (shadowHost && shadowHost.tagName.toLowerCase().includes("comment-renderer")) {
+      return shadowHost;
+    }
+    const found = el.closest("bili-comment-renderer") ?? el.closest("bili-comment-thread-renderer");
+    if (found) return found;
+    return el;
   }
   async function triggerReport(commentEl, reason) {
     var _a;
     const reasonCopied = await copyToClipboard(reason);
     if (reasonCopied) showToast("✅ 已复制 AI 判定理由，请粘贴到举报框 (Cmd+V)");
-    const el = commentEl;
-    const rootNode = el.getRootNode();
-    let renderer;
-    if (rootNode instanceof ShadowRoot) {
-      renderer = rootNode.host;
-    } else {
-      renderer = el.closest("bili-comment-renderer") ?? el.closest("bili-comment-thread-renderer") ?? el;
-    }
+    const renderer = findCommentRenderer(commentEl);
     console.log(
       TAG$5,
       "🔍 评论容器:",
@@ -1069,15 +1072,15 @@ ${ctxBlock}
     try {
       const sr = renderer.shadowRoot;
       if (!sr) {
-        console.warn(TAG$5, "⚠️ 容器无 shadowRoot:", renderer.tagName);
+        console.warn(TAG$5, "⚠️ 无 shadowRoot:", renderer.tagName);
         return { opened: false, reasonCopied };
       }
       const actionBar = deepFind(sr, "bili-comment-action-buttons-renderer");
       if (!actionBar || !actionBar.shadowRoot) {
-        console.warn(TAG$5, "⚠️ 未找到 action-buttons");
-        console.log(
+        console.warn(
           TAG$5,
-          "  shadowRoot 子元素:",
+          "⚠️ 未找到 action-buttons",
+          "| 子元素:",
           [...sr.children].map((c) => c.tagName.toLowerCase())
         );
         return { opened: false, reasonCopied };
@@ -1092,16 +1095,15 @@ ${ctxBlock}
       }
       console.log(TAG$5, "🔍 点击「更多」...");
       moreBtn.click();
-      const menuAppeared = await waitFor(() => {
+      const ok = await waitFor(() => {
         const m = actionSR.querySelector(
           "bili-comment-menu"
         );
-        if (!m || !m.shadowRoot) return false;
-        return (m.getAttribute("style") || "").includes(
+        return !!((m == null ? void 0 : m.shadowRoot) && (m.getAttribute("style") || "").includes(
           "--bili-comment-menu-display:block"
-        );
+        ));
       }, 2e3);
-      if (!menuAppeared) {
+      if (!ok) {
         console.warn(TAG$5, "⚠️ 菜单未显示");
         return { opened: false, reasonCopied };
       }
@@ -1124,64 +1126,62 @@ ${ctxBlock}
     }
   }
   function waitAndFillReportForm(reason) {
-    const start = Date.now();
-    const MAX_WAIT = 4e3;
-    let attempts = 0;
-    const tryFill = () => {
+    const s = Date.now();
+    let n = 0;
+    const f = () => {
       var _a;
-      attempts++;
+      n++;
       const popup = document.querySelector("bili-comments-popup");
       if (!popup) {
-        if (Date.now() - start < MAX_WAIT) setTimeout(tryFill, 200);
+        if (Date.now() - s < 4e3) setTimeout(f, 200);
         return;
       }
       const form = popup.querySelector("bili-comment-report-form");
       if (!form || !form.shadowRoot) {
-        if (Date.now() - start < MAX_WAIT) setTimeout(tryFill, 200);
+        if (Date.now() - s < 4e3) setTimeout(f, 200);
         return;
       }
-      const formSR = form.shadowRoot;
-      if (attempts <= 2) {
-        const allOptions = formSR.querySelectorAll("#option");
-        for (const opt of allOptions) {
+      const sr = form.shadowRoot;
+      if (n <= 2) {
+        for (const opt of sr.querySelectorAll("#option")) {
           const nameEl = opt.querySelector("#option-name");
           if (nameEl && ((_a = nameEl.innerText) == null ? void 0 : _a.includes("引战"))) {
             const radio = opt.querySelector("bili-radio");
             if (radio && radio.shadowRoot) {
-              const inputSpan = radio.shadowRoot.querySelector(
+              const sp = radio.shadowRoot.querySelector(
                 "#input"
               );
-              if (inputSpan) {
-                inputSpan.click();
+              if (sp) {
+                sp.click();
                 console.log(TAG$5, "✅ 已选中「引战、不友善言论」");
                 break;
               }
             }
-            const input = opt.querySelector(
+            const inp = opt.querySelector(
               'input[type="radio"][value="4"]'
             );
-            if (input) {
-              input.click();
+            if (inp) {
+              inp.click();
               break;
             }
           }
         }
-        setTimeout(tryFill, 300);
+        setTimeout(f, 300);
         return;
       }
-      const textarea = formSR.querySelector(
+      const ta = sr.querySelector(
         "textarea[maxlength='200']"
       );
-      if (textarea) {
-        textarea.value = reason.slice(0, 200);
-        textarea.dispatchEvent(new Event("input", { bubbles: true }));
-        textarea.dispatchEvent(new Event("change", { bubbles: true }));
+      if (ta) {
+        ta.value = reason.slice(0, 200);
+        ta.dispatchEvent(new Event("input", { bubbles: true }));
+        ta.dispatchEvent(new Event("change", { bubbles: true }));
         console.log(TAG$5, "✅ 已自动填写举报理由");
         return;
       }
-      if (Date.now() - start < MAX_WAIT) setTimeout(tryFill, 300);
+      if (Date.now() - s < 4e3) setTimeout(f, 300);
     };
-    setTimeout(tryFill, 600);
+    setTimeout(f, 600);
   }
   async function copyReason(reason) {
     const ok = await copyToClipboard(reason);

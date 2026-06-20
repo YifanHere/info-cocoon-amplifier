@@ -1035,14 +1035,16 @@ ${ctxBlock}
       showToast("✅ 已复制 AI 判定理由，请粘贴到举报框 (Cmd+V)");
     }
     const el = commentEl;
-    const prevDisplay = el.style.display;
-    el.style.display = "";
+    const renderer = el.closest("bili-comment-renderer") ?? el.closest("bili-comment-thread-renderer") ?? el;
+    console.log(TAG$5, "🔍 评论容器:", renderer.tagName.toLowerCase());
+    const prevDisplay = renderer.style.display;
+    renderer.style.display = "";
     await new Promise((r) => requestAnimationFrame(r));
     await new Promise((r) => requestAnimationFrame(r));
     try {
-      const sr = el.shadowRoot;
+      const sr = renderer.shadowRoot;
       if (!sr) {
-        console.warn(TAG$5, "⚠️ 评论元素无 shadowRoot");
+        console.warn(TAG$5, "⚠️ 评论容器无 shadowRoot:", renderer.tagName);
         return { opened: false, reasonCopied };
       }
       const actionBar = sr.querySelector("bili-comment-action-buttons-renderer");
@@ -1088,7 +1090,7 @@ ${ctxBlock}
       console.log(TAG$5, "✅ 已触发原生举报");
       return { opened: true, reasonCopied };
     } finally {
-      el.style.display = prevDisplay;
+      renderer.style.display = prevDisplay;
     }
   }
   function waitAndFillReportForm(reason) {

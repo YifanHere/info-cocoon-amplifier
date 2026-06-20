@@ -98,18 +98,28 @@ export async function triggerReport(
     showToast("✅ 已复制 AI 判定理由，请粘贴到举报框 (Cmd+V)");
   }
 
+  // ★ 向上查找真正的评论容器
+  //    findCommentElements 可能返回 [data-rpid] 内层元素或
+  //    bili-comment-thread-renderer，bili-comment-renderer 才是
+  //    拥有 shadowRoot + action-buttons 的容器
   const el = commentEl as HTMLElement;
-  const prevDisplay = el.style.display;
+  const renderer =
+    (el.closest("bili-comment-renderer") as HTMLElement | null) ??
+    (el.closest("bili-comment-thread-renderer") as HTMLElement | null) ??
+    el;
+  console.log(TAG, "🔍 评论容器:", renderer.tagName.toLowerCase());
+
+  const prevDisplay = renderer.style.display;
 
   // ★ 恢复可见 + 等浏览器重排
-  el.style.display = "";
+  renderer.style.display = "";
   await new Promise((r) => requestAnimationFrame(r));
   await new Promise((r) => requestAnimationFrame(r));
 
   try {
-    const sr = el.shadowRoot;
+    const sr = renderer.shadowRoot;
     if (!sr) {
-      console.warn(TAG, "⚠️ 评论元素无 shadowRoot");
+      console.warn(TAG, "⚠️ 评论容器无 shadowRoot:", renderer.tagName);
       return { opened: false, reasonCopied };
     }
 
@@ -166,7 +176,7 @@ export async function triggerReport(
     console.log(TAG, "✅ 已触发原生举报");
     return { opened: true, reasonCopied };
   } finally {
-    el.style.display = prevDisplay;
+    renderer.style.display = prevDisplay;
   }
 }
 
@@ -210,14 +220,11 @@ function waitAndFillReportForm(reason: string): void {
     const formSR = (form as HTMLElement).shadowRoot!;
 
     // 3) 先点击「引战、不友善言论」radio (value=4)
-    //    否则对应的 textarea 是隐藏的
     if (attempts <= 2) {
-      // 通过 bili-radio 组件的 shadow DOM 找到 <input type="radio" value="4">
       const allOptions = formSR.querySelectorAll("#option");
       for (const opt of allOptions) {
         const nameEl = opt.querySelector("#option-name");
         if (nameEl && (nameEl as HTMLElement).innerText?.includes("引战")) {
-          // 找到 bili-radio → shadowRoot → span#input → click
           const radio = opt.querySelector("bili-radio");
           if (radio && (radio as HTMLElement).shadowRoot) {
             const inputSpan = (radio as HTMLElement).shadowRoot!.querySelector(
@@ -229,7 +236,6 @@ function waitAndFillReportForm(reason: string): void {
               break;
             }
           }
-          // fallback: 直接点击 radio 的 input
           const input = opt.querySelector(
             'input[type="radio"][value="4"]',
           ) as HTMLElement | null;
@@ -239,7 +245,6 @@ function waitAndFillReportForm(reason: string): void {
           }
         }
       }
-      // 等 B站渲染出 textarea
       setTimeout(tryFill, 300);
       return;
     }

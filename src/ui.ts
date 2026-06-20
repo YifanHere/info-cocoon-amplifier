@@ -220,6 +220,7 @@ function buildPanelHTML(config: FilterConfig): string {
         style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box;background:#fff">
         <option value="classic" ${config.foldMode === "classic" ? "selected" : ""}>⚠️ 经典警告 — 黄底醒目提示</option>
         <option value="light" ${config.foldMode === "light" ? "selected" : ""}>▎极简标记 — 灰线弱提示</option>
+        <option value="dim" ${config.foldMode === "dim" ? "selected" : ""}>· 隐形弱化 — 几乎不可见</option>
         <option value="none" ${config.foldMode === "none" ? "selected" : ""}>🚫 完全隐藏 — 直接移除评论</option>
       </select>
     </div>
@@ -272,6 +273,7 @@ function buildPanelHTML(config: FilterConfig): string {
     </div>
     <div style="display:flex;gap:8px;margin-top:8px">
       <button id="ruozhi-clear-cache" style="flex:1;padding:6px;border:1px solid #ddd;border-radius:6px;background:#fff;color:#999;font-size:12px;cursor:pointer">🗑️ 清除缓存</button>
+      <button id="ruozhi-clear-stats" style="flex:1;padding:6px;border:1px solid #e6a23c;border-radius:6px;background:#fff;color:#e6a23c;font-size:12px;cursor:pointer">📊 重置统计</button>
       <button id="ruozhi-clear-bl" style="flex:1;padding:6px;border:1px solid #f56c6c;border-radius:6px;background:#fff;color:#f56c6c;font-size:12px;cursor:pointer">⚠️ 清空黑名单</button>
     </div>
     <div id="ruozhi-status" style="margin-top:8px;font-size:12px;color:#666;min-height:18px"></div>
@@ -443,9 +445,10 @@ function bindPanelEvents(
   root.addEventListener("click", (e) => {
     const target = e.target as HTMLElement;
     if (!target.closest("#ruozhi-clear-stats")) return;
-    if (!confirm("确定要重置所有统计数据吗？")) return;
+    if (!confirm("确定要重置所有统计数据吗？此操作不可撤销。")) return;
     resetStats();
     updateStatsPanel();
+    showStatus(root, "✅ 统计数据已重置", "#28a745");
   });
 }
 

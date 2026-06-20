@@ -1219,20 +1219,35 @@ ${ctxBlock}
         block: "#b87070"
       };
       const accent = severityAccent[verdict.severity] ?? "#ccc";
-      const showReportBtn = verdict.severity === "high" || verdict.severity === "block";
+      const showReportBtn = verdict.severity === "medium" || verdict.severity === "high" || verdict.severity === "block";
+      const foldedReportBtnHTML = showReportBtn ? `<span class="ruozhi-report-btn" style="display:inline-flex;align-items:center;gap:2px;margin:0 6px;padding:1px 6px;font-size:11px;border:1px solid #d47574;border-radius:3px;background:#fff;color:#d47574;cursor:pointer;user-select:none">🚨举报</span>` : "";
       const reportBtnsHTML = showReportBtn ? `<div style="margin-top:8px;display:flex;gap:8px">
   <button class="ruozhi-copy-reason" style="padding:3px 10px;font-size:12px;border:1px solid #d4a574;border-radius:4px;background:#fff;color:#d4a574;cursor:pointer">📋 复制理由</button>
   <button class="ruozhi-report-btn" style="padding:3px 10px;font-size:12px;border:1px solid #d47574;border-radius:4px;background:#fff;color:#d47574;cursor:pointer">🚨 举报此评论</button>
 </div>` : "";
-      const html = style === "classic" ? `<div class="ruozhi-folded" style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:8px 12px;margin:4px 0;font-size:13px;color:#856404;cursor:pointer;user-select:none;font-family:system-ui,sans-serif">
-<span style="margin-right:8px">${label}</span><span style="font-weight:600">${esc(info.uname)}</span><span style="margin:0 8px;color:#ccc">|</span><span style="font-size:12px;color:#aaa">${esc(verdict.reason)}</span><span style="float:right;font-size:11px;color:#999">▼ 展开</span>
+      const html = (() => {
+        switch (style) {
+          case "classic":
+            return `<div class="ruozhi-folded" style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:8px 12px;margin:4px 0;font-size:13px;color:#856404;cursor:pointer;user-select:none;font-family:system-ui,sans-serif">
+<span style="margin-right:8px">${label}</span><span style="font-weight:600">${esc(info.uname)}</span><span style="margin:0 8px;color:#ccc">|</span><span style="font-size:12px;color:#aaa">${esc(verdict.reason)}</span>${foldedReportBtnHTML}<span style="float:right;font-size:11px;color:#999">▼ 展开</span>
 </div><div class="ruozhi-original" style="display:none;padding:8px 12px;background:#f8f9fa;border-left:3px solid #ffc107;margin:4px 0;border-radius:0 6px 6px 0;font-size:13px">
 <div style="margin-bottom:6px;font-size:12px;color:#999">🧠 AI判定: <strong>${esc(verdict.reason)}</strong></div>
-<div style="color:#333;white-space:pre-wrap;word-break:break-word">${esc(info.message)}</div>${reportBtnsHTML}</div>` : `<div class="ruozhi-folded" style="background:#fafafa;border-left:3px solid ${accent};padding:6px 12px;margin:4px 0;font-size:12px;color:#aaa;cursor:pointer;user-select:none;font-family:system-ui,sans-serif">
-<span style="margin-right:6px">${label}</span><span style="color:#999">${esc(info.uname)}</span><span style="float:right;font-size:10px;color:#ccc">▾</span>
+<div style="color:#333;white-space:pre-wrap;word-break:break-word">${esc(info.message)}</div>${reportBtnsHTML}</div>`;
+          case "dim":
+            return `<div class="ruozhi-folded" style="padding:1px 8px;margin:1px 0;font-size:9px;color:#ddd;cursor:pointer;user-select:none;font-family:system-ui,sans-serif;line-height:1.2;transition:color .15s,background .15s;border-radius:4px"
+  onmouseenter="this.style.color='#bbb';this.style.background='#fafafa'" onmouseleave="this.style.color='#ddd';this.style.background='transparent'">
+<span style="opacity:0.6">···</span>${foldedReportBtnHTML}
+</div><div class="ruozhi-original" style="display:none;padding:4px 8px;margin:0 0 2px 0;font-size:11px;color:#bbb;background:#fafafa;border-left:2px solid #eee;border-radius:0 4px 4px 0">
+<div style="margin-bottom:2px;font-size:10px;color:#ccc">${esc(verdict.reason)}</div>
+<div style="color:#bbb;white-space:pre-wrap;word-break:break-word">${esc(info.message)}</div>${reportBtnsHTML}</div>`;
+          default:
+            return `<div class="ruozhi-folded" style="background:#fafafa;border-left:3px solid ${accent};padding:6px 12px;margin:4px 0;font-size:12px;color:#aaa;cursor:pointer;user-select:none;font-family:system-ui,sans-serif">
+<span style="margin-right:6px">${label}</span><span style="color:#999">${esc(info.uname)}</span>${foldedReportBtnHTML}<span style="float:right;font-size:10px;color:#ccc">▾</span>
 </div><div class="ruozhi-original" style="display:none;padding:6px 12px;background:#fafafa;border-left:3px solid #ddd;margin:0 0 4px 0;font-size:12px;color:#999">
 <div style="margin-bottom:4px;font-size:11px;color:#bbb">AI判定: ${esc(verdict.reason)}</div>
 <div style="color:#bbb;white-space:pre-wrap;word-break:break-word">${esc(info.message)}</div>${reportBtnsHTML}</div>`;
+        }
+      })();
       const wrapper = document.createElement("div");
       wrapper.innerHTML = html;
       const foldElDiv = wrapper.firstElementChild;
@@ -1247,6 +1262,11 @@ ${ctxBlock}
         if (arrow) arrow.textContent = hidden ? "▴" : "▾";
       });
       if (showReportBtn) {
+        const foldedReportBtn = foldElDiv.querySelector(".ruozhi-report-btn");
+        foldedReportBtn == null ? void 0 : foldedReportBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          triggerReport(el, verdict.reason);
+        });
         const copyBtn = origElDiv.querySelector(".ruozhi-copy-reason");
         const reportBtn = origElDiv.querySelector(".ruozhi-report-btn");
         copyBtn == null ? void 0 : copyBtn.addEventListener("click", (e) => {
@@ -1968,6 +1988,7 @@ ${ctxBlock}
         style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box;background:#fff">
         <option value="classic" ${config.foldMode === "classic" ? "selected" : ""}>⚠️ 经典警告 — 黄底醒目提示</option>
         <option value="light" ${config.foldMode === "light" ? "selected" : ""}>▎极简标记 — 灰线弱提示</option>
+        <option value="dim" ${config.foldMode === "dim" ? "selected" : ""}>· 隐形弱化 — 几乎不可见</option>
         <option value="none" ${config.foldMode === "none" ? "selected" : ""}>🚫 完全隐藏 — 直接移除评论</option>
       </select>
     </div>
@@ -2020,6 +2041,7 @@ ${ctxBlock}
     </div>
     <div style="display:flex;gap:8px;margin-top:8px">
       <button id="ruozhi-clear-cache" style="flex:1;padding:6px;border:1px solid #ddd;border-radius:6px;background:#fff;color:#999;font-size:12px;cursor:pointer">🗑️ 清除缓存</button>
+      <button id="ruozhi-clear-stats" style="flex:1;padding:6px;border:1px solid #e6a23c;border-radius:6px;background:#fff;color:#e6a23c;font-size:12px;cursor:pointer">📊 重置统计</button>
       <button id="ruozhi-clear-bl" style="flex:1;padding:6px;border:1px solid #f56c6c;border-radius:6px;background:#fff;color:#f56c6c;font-size:12px;cursor:pointer">⚠️ 清空黑名单</button>
     </div>
     <div id="ruozhi-status" style="margin-top:8px;font-size:12px;color:#666;min-height:18px"></div>
@@ -2145,9 +2167,10 @@ ${ctxBlock}
     root.addEventListener("click", (e) => {
       const target = e.target;
       if (!target.closest("#ruozhi-clear-stats")) return;
-      if (!confirm("确定要重置所有统计数据吗？")) return;
+      if (!confirm("确定要重置所有统计数据吗？此操作不可撤销。")) return;
       resetStats();
       updateStatsPanel();
+      showStatus(root, "✅ 统计数据已重置", "#28a745");
     });
   }
   function showStatus(root, msg, color) {

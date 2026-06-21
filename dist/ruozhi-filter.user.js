@@ -19,6 +19,7 @@
     apiKey: "",
     apiEndpoint: "https://api.deepseek.com/chat/completions",
     model: "deepseek-chat",
+    theme: "github",
     prompt: `请帮我识别以下评论中，具有明显性别对立、引战、人身攻击、煽动性、仇恨言论的内容。
 
 违规判定维度：
@@ -42,7 +43,8 @@
     learnedProfile: "",
     learningCorrections: [],
     lastRefinedCount: 0,
-    knowledgeBase: []
+    knowledgeBase: [],
+    fontScale: 1
   };
   let _devMode = false;
   function setDevMode(v) {
@@ -74,18 +76,25 @@
           parsed.prompt = (parsed.prompt || "") + "\n\n违规判定维度：\n" + parsed.filterDimensions;
           delete parsed.filterDimensions;
         }
+        if (!parsed.theme) {
+          parsed.theme = "claude";
+        }
+        if (parsed.fontScale === void 0) {
+          parsed.fontScale = 1;
+        }
         const merged = { ...DEFAULT_CONFIG, ...parsed };
         setDevMode(merged.devMode);
         _config = merged;
         return merged;
       }
     } catch (e) {
-      console.error("[ruozhi-filter]", "❌ 配置加载失败:", e);
+      console.error("[ruozhi-filter]", "Config load failed:", e);
     }
     return {
       apiKey: "",
       apiEndpoint: "https://api.deepseek.com/chat/completions",
       model: "deepseek-chat",
+      theme: "github",
       prompt: "",
       foldMode: "classic",
       enableAI: true,
@@ -101,7 +110,8 @@
       learnedProfile: "",
       learningCorrections: [],
       lastRefinedCount: 0,
-      knowledgeBase: []
+      knowledgeBase: [],
+      fontScale: 1
     };
   }
   function refreshConfig(cfg) {
@@ -118,7 +128,7 @@
     if (ctx.videoTitle) currentContext.videoTitle = ctx.videoTitle;
     if (ctx.videoDesc) currentContext.videoDesc = ctx.videoDesc;
   }
-  const TAG$8 = "[ruozhi-filter]";
+  const TAG$7 = "[ruozhi-filter]";
   const MAX_CORRECTIONS = 500;
   const REFINE_THRESHOLD = 20;
   const MAX_PROFILE_LENGTH = 300;
@@ -152,8 +162,8 @@
       const newSinceLast = config.learningCorrections.length - (config.lastRefinedCount ?? 0);
       persist(config);
       log(
-        TAG$8,
-        `🧠 学习记录: ${entry.type} | 总${config.learningCorrections.length}条 | 新${newSinceLast}条 | 画像${config.learnedProfile ? "✓" : "✗"}`
+        TAG$7,
+        `学习记录: ${entry.type} | 总${config.learningCorrections.length}条 | 新${newSinceLast}条 | 画像${config.learnedProfile ? "✓" : "✗"}`
       );
       if (newSinceLast >= REFINE_THRESHOLD && refineCallback && !refining) {
         refining = true;
@@ -162,7 +172,7 @@
         });
       }
     } catch (err) {
-      console.warn(TAG$8, "⚠️ 学习记录失败:", err);
+      console.warn(TAG$7, " 学习记录失败:", err);
     }
   }
   function buildLearningPrompt() {
@@ -250,11 +260,11 @@ ${truncated.join("\n")}
       config.lastRefinedCount = ((_a = config.learningCorrections) == null ? void 0 : _a.length) ?? 0;
       persist(config);
       log(
-        TAG$8,
-        `✅ 画像已更新 (${trimmed.length}字) | 已处理${config.lastRefinedCount}条 | 新画像: ${trimmed.slice(0, 80)}…`
+        TAG$7,
+        ` 画像已更新 (${trimmed.length}字) | 已处理${config.lastRefinedCount}条 | 新画像: ${trimmed.slice(0, 80)}…`
       );
     } catch (err) {
-      console.warn(TAG$8, "⚠️ 画像保存失败:", err);
+      console.warn(TAG$7, " 画像保存失败:", err);
     }
   }
   function persist(config) {
@@ -263,10 +273,10 @@ ${truncated.join("\n")}
       GM_setValue("ruozhi-config", json);
       const verify = GM_getValue("ruozhi-config", "");
       if (!verify || verify.length < 10) {
-        console.error(TAG$8, "❌ 持久化验证失败: 写入后读取为空");
+        console.error(TAG$7, "Persistence verification failed: 写入后读取为空");
       }
     } catch (e) {
-      console.error(TAG$8, "❌ 持久化失败:", e);
+      console.error(TAG$7, "Persistence failed:", e);
     }
   }
   function getLearnedProfile() {
@@ -335,7 +345,7 @@ ${truncated.join("\n")}
     } catch {
     }
   }
-  const TAG$7 = "[ruozhi-filter]";
+  const TAG$6 = "[ruozhi-filter]";
   function buildSystemPrompt(config, ctx) {
     const ctxParts = [`视频：${ctx.videoTitle}`];
     if (config.sendVideoDesc) {
@@ -382,11 +392,11 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
     const userMessage = buildUserMessage(config, replies);
     const isRefining = shouldRefineProfile();
     if (isRefining) {
-      log(TAG$7, `🧠 触发画像更新 (评论判定附带)`);
+      log(TAG$6, `触发画像更新 (评论判定附带)`);
     }
     log(
-      TAG$7,
-      "📤 请求体:",
+      TAG$6,
+      "请求体:",
       JSON.stringify({
         model: config.model,
         systemPrompt: systemPrompt.slice(0, 500) + (systemPrompt.length > 500 ? "..." : ""),
@@ -418,17 +428,17 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
           response_format: { type: "json_object" }
         })
       });
-      log(TAG$7, `📡 API HTTP ${response.status}, ${Date.now() - fetchStart}ms`);
+      log(TAG$6, `API HTTP ${response.status}, ${Date.now() - fetchStart}ms`);
       if (!response.ok) {
         const errText = await response.text();
-        console.error(TAG$7, `❌ API ${response.status}:`, errText.slice(0, 200));
+        console.error(TAG$6, `API error ${response.status}:`, errText.slice(0, 200));
         throw new Error(`DeepSeek API error ${response.status}`);
       }
       const data = await response.json();
       const content = (_c = (_b = (_a = data.choices) == null ? void 0 : _a[0]) == null ? void 0 : _b.message) == null ? void 0 : _c.content;
       const usage = data.usage;
       if (!content) {
-        warn(TAG$7, "⚠️ AI 返回空内容");
+        warn(TAG$6, " AI 返回空内容");
         return { verdicts: [], usage };
       }
       try {
@@ -450,11 +460,11 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
         }
         return { verdicts, usage };
       } catch (e) {
-        console.error(TAG$7, "❌ AI 返回解析失败:", e);
+        console.error(TAG$6, "AI response parse failed:", e);
         return { verdicts: [], usage };
       }
     } catch (err) {
-      console.error(TAG$7, "❌ 网络请求失败:", err);
+      console.error(TAG$6, "Network request failed:", err);
       throw err;
     }
   }
@@ -487,17 +497,17 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
   async function _refineProfile(force) {
     var _a, _b, _c;
     if (!force && !shouldRefineProfile()) {
-      log(TAG$7, "🧠 refineProfile: 未达阈值，跳过");
+      log(TAG$6, "refineProfile: 未达阈值，跳过");
       return;
     }
     const config = getConfig();
     if (!config.apiKey) {
-      warn(TAG$7, "⚠️ 画像更新跳过: 未配置API Key");
+      warn(TAG$6, " 画像更新跳过: 未配置API Key");
       return;
     }
     const records = config.learningCorrections;
     if (!Array.isArray(records) || records.length === 0) {
-      warn(TAG$7, "⚠️ 画像更新跳过: 无学习记录");
+      warn(TAG$6, " 画像更新跳过: 无学习记录");
       return;
     }
     const savedCount = config.lastRefinedCount;
@@ -509,12 +519,12 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
       config.lastRefinedCount = savedCount;
     }
     if (!instruction) {
-      warn(TAG$7, "⚠️ 画像更新跳过: 无更新指令");
+      warn(TAG$6, " 画像更新跳过: 无更新指令");
       return;
     }
     log(
-      TAG$7,
-      `🧠 ${force ? "强制" : "自动"}画像更新中... (指令${instruction.length}字)`
+      TAG$6,
+      `${force ? "强制" : "自动"}画像更新中... (指令${instruction.length}字)`
     );
     const fetcher = typeof unsafeWindow !== "undefined" ? unsafeWindow.fetch : window.fetch;
     try {
@@ -539,13 +549,13 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
         })
       });
       if (!response.ok) {
-        console.error(TAG$7, `❌ 画像更新API ${response.status}`);
+        console.error(TAG$6, `Profile update API error ${response.status}`);
         return;
       }
       const data = await response.json();
       const content = (_c = (_b = (_a = data.choices) == null ? void 0 : _a[0]) == null ? void 0 : _b.message) == null ? void 0 : _c.content;
       if (!content) {
-        warn(TAG$7, "⚠️ 画像更新: AI 返回空内容");
+        warn(TAG$6, " 画像更新: AI 返回空内容");
         return;
       }
       let jsonStr = content.trim();
@@ -557,10 +567,10 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
       if (parsed.refinedProfile && typeof parsed.refinedProfile === "string") {
         applyRefinedProfile(parsed.refinedProfile);
       } else {
-        warn(TAG$7, "⚠️ 画像更新: 未收到 refinedProfile 字段");
+        warn(TAG$6, " 画像更新: 未收到 refinedProfile 字段");
       }
     } catch (err) {
-      console.error(TAG$7, "❌ 画像更新失败:", err);
+      console.error(TAG$6, "Profile update failed:", err);
     }
   }
   const instanceOfAny = (object, constructors) => constructors.some((c) => object instanceof c);
@@ -996,44 +1006,220 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
       memoryCacheReady = true;
       log(
         "[ruozhi-filter]",
-        `📋 内存缓存就绪: 黑名单=${blByMid.size}条, 缓存=${cacheByHash.size}条`
+        `Memory cache ready: 黑名单=${blByMid.size}条, 缓存=${cacheByHash.size}条`
       );
     } catch (err) {
-      console.error("[ruozhi-filter]", "❌ 内存缓存初始化失败:", err);
+      console.error("[ruozhi-filter]", "Memory cache init failed:", err);
     }
   }
-  function escapeHtml$1(s) {
-    const div = document.createElement("div");
-    div.textContent = s;
-    return div.innerHTML;
-  }
-  async function buildBlacklistPanelHTML() {
-    const records = await getAllBlacklist();
-    if (records.length === 0) {
-      return `<div style="padding:16px;text-align:center;color:#999">暂无黑名单记录，一片祥和 🎉</div>`;
+  const TAG$5 = "[ruozhi-filter]";
+  async function copyToClipboard(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
     }
-    const rows = records.sort((a, b) => b.timestamp - a.timestamp).map((r) => {
-      const date = new Date(r.timestamp).toLocaleString("zh-CN");
-      const mid = r.mid;
-      const sourceBadge = r.source === "manual" ? '<span style="background:#d9534f;color:#fff;font-size:10px;padding:1px 5px;border-radius:3px;margin-left:4px">手动</span>' : '<span style="background:#667eea;color:#fff;font-size:10px;padding:1px 5px;border-radius:3px;margin-left:4px">AI</span>';
-      return `
-      <div style="padding:10px 12px;border-bottom:1px solid #eee;font-size:13px">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <span><strong>${escapeHtml$1(r.uname)}</strong>${sourceBadge}</span>
-          <span style="font-size:12px;color:#999">${date}</span>
-        </div>
-        <div style="color:#666;margin:4px 0">💬 ${escapeHtml$1(r.message.slice(0, 100))}${r.message.length > 100 ? "..." : ""}</div>
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <span style="color:#d9534f">📋 ${escapeHtml$1(r.reason)}</span>
-          <button class="ruozhi-remove-bl" data-mid="${mid}"
-            style="padding:2px 8px;font-size:12px;background:#fff;border:1px solid #ddd;border-radius:4px;cursor:pointer">
-            移除
-          </button>
-        </div>
-        <div style="font-size:11px;color:#bbb;margin-top:2px">📺 ${escapeHtml$1(r.videoTitle)}</div>
-      </div>`;
-    }).join("");
-    return rows;
+  }
+  function findByText(root, text) {
+    const walk = (node) => {
+      var _a, _b;
+      for (const child of node.children) {
+        const el = child;
+        if ((((_a = el.innerText) == null ? void 0 : _a.trim()) || ((_b = el.textContent) == null ? void 0 : _b.trim()) || "") === text)
+          return el;
+        if (el.shadowRoot) {
+          const f = walk(el.shadowRoot);
+          if (f) return f;
+        }
+        if (el.children.length > 0) {
+          const f = walk(el);
+          if (f) return f;
+        }
+      }
+      return null;
+    };
+    return walk(
+      root instanceof Element ? root.shadowRoot ?? root : root
+    );
+  }
+  function waitFor(cb, ms) {
+    return new Promise((r) => {
+      const s = Date.now();
+      const c = () => {
+        if (cb()) r(true);
+        else if (Date.now() - s > ms) r(false);
+        else requestAnimationFrame(c);
+      };
+      c();
+    });
+  }
+  function deepFind(root, sel) {
+    const e = root.querySelector(sel);
+    if (e) return e;
+    for (const c of root.children) {
+      const ce = c;
+      if (ce.shadowRoot) {
+        const f = deepFind(ce.shadowRoot, sel);
+        if (f) return f;
+      }
+    }
+    return null;
+  }
+  function findCommentRenderer(el) {
+    const rootNode = el.getRootNode();
+    const shadowHost = rootNode instanceof ShadowRoot ? rootNode.host : null;
+    if (shadowHost && shadowHost.tagName.toLowerCase().includes("comment-renderer")) {
+      return shadowHost;
+    }
+    const found = el.closest("bili-comment-renderer") ?? el.closest("bili-comment-thread-renderer");
+    if (found) return found;
+    return el;
+  }
+  async function triggerReport(commentEl, reason) {
+    var _a;
+    const reasonCopied = await copyToClipboard(reason);
+    if (reasonCopied) showToast("已复制 AI 判定理由，请粘贴到举报框 (Cmd+V)");
+    const renderer = findCommentRenderer(commentEl);
+    log(
+      TAG$5,
+      "Comment container:",
+      renderer.tagName.toLowerCase(),
+      "| shadowRoot:",
+      !!renderer.shadowRoot,
+      "| children:",
+      ((_a = renderer.shadowRoot) == null ? void 0 : _a.children.length) ?? 0
+    );
+    const prevDisplay = renderer.style.display;
+    renderer.style.display = "";
+    await new Promise((r) => requestAnimationFrame(r));
+    await new Promise((r) => requestAnimationFrame(r));
+    try {
+      const sr = renderer.shadowRoot;
+      if (!sr) {
+        warn(TAG$5, "No shadowRoot:", renderer.tagName);
+        return { opened: false, reasonCopied };
+      }
+      const actionBar = deepFind(sr, "bili-comment-action-buttons-renderer");
+      if (!actionBar || !actionBar.shadowRoot) {
+        warn(
+          TAG$5,
+          "No action-buttons found",
+          "| 子元素:",
+          [...sr.children].map((c) => c.tagName.toLowerCase())
+        );
+        return { opened: false, reasonCopied };
+      }
+      const actionSR = actionBar.shadowRoot;
+      const moreBtn = actionSR.querySelector(
+        "#more button"
+      );
+      if (!moreBtn) {
+        warn(TAG$5, "No 'More' button found");
+        return { opened: false, reasonCopied };
+      }
+      log(TAG$5, "Clicking 'More'...");
+      moreBtn.click();
+      const ok = await waitFor(() => {
+        const m = actionSR.querySelector(
+          "bili-comment-menu"
+        );
+        return !!((m == null ? void 0 : m.shadowRoot) && (m.getAttribute("style") || "").includes(
+          "--bili-comment-menu-display:block"
+        ));
+      }, 2e3);
+      if (!ok) {
+        warn(TAG$5, "Menu did not appear");
+        return { opened: false, reasonCopied };
+      }
+      const menuEl = actionSR.querySelector("bili-comment-menu");
+      const reportLi = findByText(
+        menuEl.shadowRoot,
+        "举报"
+      );
+      if (!reportLi) {
+        warn(TAG$5, "No 'Report' found in menu");
+        return { opened: false, reasonCopied };
+      }
+      log(TAG$5, "Clicking 'Report'...");
+      reportLi.click();
+      waitAndFillReportForm(reason);
+      log(TAG$5, "Native report triggered");
+      return { opened: true, reasonCopied };
+    } finally {
+      renderer.style.display = prevDisplay;
+    }
+  }
+  function waitAndFillReportForm(reason) {
+    const s = Date.now();
+    let n = 0;
+    const f = () => {
+      var _a;
+      n++;
+      const popup = document.querySelector("bili-comments-popup");
+      if (!popup) {
+        if (Date.now() - s < 4e3) setTimeout(f, 200);
+        return;
+      }
+      const form = popup.querySelector("bili-comment-report-form");
+      if (!form || !form.shadowRoot) {
+        if (Date.now() - s < 4e3) setTimeout(f, 200);
+        return;
+      }
+      const sr = form.shadowRoot;
+      if (n <= 2) {
+        for (const opt of sr.querySelectorAll("#option")) {
+          const nameEl = opt.querySelector("#option-name");
+          if (nameEl && ((_a = nameEl.innerText) == null ? void 0 : _a.includes("引战"))) {
+            const radio = opt.querySelector("bili-radio");
+            if (radio && radio.shadowRoot) {
+              const sp = radio.shadowRoot.querySelector(
+                "#input"
+              );
+              if (sp) {
+                sp.click();
+                log(TAG$5, "Selected 'Provocative/unfriendly' category");
+                break;
+              }
+            }
+            const inp = opt.querySelector(
+              'input[type="radio"][value="4"]'
+            );
+            if (inp) {
+              inp.click();
+              break;
+            }
+          }
+        }
+        setTimeout(f, 300);
+        return;
+      }
+      const ta = sr.querySelector(
+        "textarea[maxlength='200']"
+      );
+      if (ta) {
+        ta.value = reason.slice(0, 200);
+        ta.dispatchEvent(new Event("input", { bubbles: true }));
+        ta.dispatchEvent(new Event("change", { bubbles: true }));
+        log(TAG$5, "Report reason auto-filled");
+        return;
+      }
+      if (Date.now() - s < 4e3) setTimeout(f, 300);
+    };
+    setTimeout(f, 600);
+  }
+  async function copyReason(reason) {
+    const ok = await copyToClipboard(reason);
+    if (ok) showToast("已复制 AI 判定理由，请粘贴到举报框 (Cmd+V)");
+    return ok;
   }
   const STATS_KEY = "ruozhi-stats";
   function loadStats() {
@@ -1132,11 +1318,6 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
       h = (h << 5) + h + s.charCodeAt(i) & 2147483647;
     }
     return h;
-  }
-  function esc(s) {
-    const d = document.createElement("div");
-    d.textContent = s;
-    return d.innerHTML;
   }
   function getCommentRoot() {
     const bc = document.querySelector("bili-comments");
@@ -1301,486 +1482,11 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
       if (!message || message.length < 2) return null;
       return { el, rpid, mid, uname, message };
     } catch (e) {
-      warn("[ruozhi-filter]", "  ❌ extractComment 异常:", e);
+      warn("[ruozhi-filter]", "  extractComment 异常:", e);
       return null;
-    }
-  }
-  const TAG$6 = "[ruozhi-filter]";
-  async function copyToClipboard(text) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch {
-      const ta = document.createElement("textarea");
-      ta.value = text;
-      ta.style.position = "fixed";
-      ta.style.left = "-9999px";
-      document.body.appendChild(ta);
-      ta.select();
-      const ok = document.execCommand("copy");
-      document.body.removeChild(ta);
-      return ok;
-    }
-  }
-  function findByText(root, text) {
-    const walk = (node) => {
-      var _a, _b;
-      for (const child of node.children) {
-        const el = child;
-        if ((((_a = el.innerText) == null ? void 0 : _a.trim()) || ((_b = el.textContent) == null ? void 0 : _b.trim()) || "") === text)
-          return el;
-        if (el.shadowRoot) {
-          const f = walk(el.shadowRoot);
-          if (f) return f;
-        }
-        if (el.children.length > 0) {
-          const f = walk(el);
-          if (f) return f;
-        }
-      }
-      return null;
-    };
-    return walk(
-      root instanceof Element ? root.shadowRoot ?? root : root
-    );
-  }
-  function showToast(msg, d = 2500) {
-    const t = document.createElement("div");
-    t.textContent = msg;
-    Object.assign(t.style, {
-      position: "fixed",
-      bottom: "60px",
-      left: "50%",
-      transform: "translateX(-50%)",
-      background: "rgba(0,0,0,0.82)",
-      color: "#fff",
-      padding: "10px 20px",
-      borderRadius: "8px",
-      fontSize: "14px",
-      zIndex: "999999",
-      fontFamily: "system-ui, sans-serif",
-      pointerEvents: "none",
-      transition: "opacity 0.3s"
-    });
-    document.body.appendChild(t);
-    setTimeout(() => {
-      t.style.opacity = "0";
-      setTimeout(() => t.remove(), 300);
-    }, d);
-  }
-  function waitFor(cb, ms) {
-    return new Promise((r) => {
-      const s = Date.now();
-      const c = () => {
-        if (cb()) r(true);
-        else if (Date.now() - s > ms) r(false);
-        else requestAnimationFrame(c);
-      };
-      c();
-    });
-  }
-  function deepFind(root, sel) {
-    const e = root.querySelector(sel);
-    if (e) return e;
-    for (const c of root.children) {
-      const ce = c;
-      if (ce.shadowRoot) {
-        const f = deepFind(ce.shadowRoot, sel);
-        if (f) return f;
-      }
-    }
-    return null;
-  }
-  function findCommentRenderer(el) {
-    const rootNode = el.getRootNode();
-    const shadowHost = rootNode instanceof ShadowRoot ? rootNode.host : null;
-    if (shadowHost && shadowHost.tagName.toLowerCase().includes("comment-renderer")) {
-      return shadowHost;
-    }
-    const found = el.closest("bili-comment-renderer") ?? el.closest("bili-comment-thread-renderer");
-    if (found) return found;
-    return el;
-  }
-  async function triggerReport(commentEl, reason) {
-    var _a;
-    const reasonCopied = await copyToClipboard(reason);
-    if (reasonCopied) showToast("✅ 已复制 AI 判定理由，请粘贴到举报框 (Cmd+V)");
-    const renderer = findCommentRenderer(commentEl);
-    log(
-      TAG$6,
-      "🔍 评论容器:",
-      renderer.tagName.toLowerCase(),
-      "| shadowRoot:",
-      !!renderer.shadowRoot,
-      "| children:",
-      ((_a = renderer.shadowRoot) == null ? void 0 : _a.children.length) ?? 0
-    );
-    const prevDisplay = renderer.style.display;
-    renderer.style.display = "";
-    await new Promise((r) => requestAnimationFrame(r));
-    await new Promise((r) => requestAnimationFrame(r));
-    try {
-      const sr = renderer.shadowRoot;
-      if (!sr) {
-        warn(TAG$6, "⚠️ 无 shadowRoot:", renderer.tagName);
-        return { opened: false, reasonCopied };
-      }
-      const actionBar = deepFind(sr, "bili-comment-action-buttons-renderer");
-      if (!actionBar || !actionBar.shadowRoot) {
-        warn(
-          TAG$6,
-          "⚠️ 未找到 action-buttons",
-          "| 子元素:",
-          [...sr.children].map((c) => c.tagName.toLowerCase())
-        );
-        return { opened: false, reasonCopied };
-      }
-      const actionSR = actionBar.shadowRoot;
-      const moreBtn = actionSR.querySelector(
-        "#more button"
-      );
-      if (!moreBtn) {
-        warn(TAG$6, "⚠️ 未找到「更多」按钮");
-        return { opened: false, reasonCopied };
-      }
-      log(TAG$6, "🔍 点击「更多」...");
-      moreBtn.click();
-      const ok = await waitFor(() => {
-        const m = actionSR.querySelector(
-          "bili-comment-menu"
-        );
-        return !!((m == null ? void 0 : m.shadowRoot) && (m.getAttribute("style") || "").includes(
-          "--bili-comment-menu-display:block"
-        ));
-      }, 2e3);
-      if (!ok) {
-        warn(TAG$6, "⚠️ 菜单未显示");
-        return { opened: false, reasonCopied };
-      }
-      const menuEl = actionSR.querySelector("bili-comment-menu");
-      const reportLi = findByText(
-        menuEl.shadowRoot,
-        "举报"
-      );
-      if (!reportLi) {
-        warn(TAG$6, "⚠️ 菜单中未找到「举报」");
-        return { opened: false, reasonCopied };
-      }
-      log(TAG$6, "🔍 点击「举报」...");
-      reportLi.click();
-      waitAndFillReportForm(reason);
-      log(TAG$6, "✅ 已触发原生举报");
-      return { opened: true, reasonCopied };
-    } finally {
-      renderer.style.display = prevDisplay;
-    }
-  }
-  function waitAndFillReportForm(reason) {
-    const s = Date.now();
-    let n = 0;
-    const f = () => {
-      var _a;
-      n++;
-      const popup = document.querySelector("bili-comments-popup");
-      if (!popup) {
-        if (Date.now() - s < 4e3) setTimeout(f, 200);
-        return;
-      }
-      const form = popup.querySelector("bili-comment-report-form");
-      if (!form || !form.shadowRoot) {
-        if (Date.now() - s < 4e3) setTimeout(f, 200);
-        return;
-      }
-      const sr = form.shadowRoot;
-      if (n <= 2) {
-        for (const opt of sr.querySelectorAll("#option")) {
-          const nameEl = opt.querySelector("#option-name");
-          if (nameEl && ((_a = nameEl.innerText) == null ? void 0 : _a.includes("引战"))) {
-            const radio = opt.querySelector("bili-radio");
-            if (radio && radio.shadowRoot) {
-              const sp = radio.shadowRoot.querySelector(
-                "#input"
-              );
-              if (sp) {
-                sp.click();
-                log(TAG$6, "✅ 已选中「引战、不友善言论」");
-                break;
-              }
-            }
-            const inp = opt.querySelector(
-              'input[type="radio"][value="4"]'
-            );
-            if (inp) {
-              inp.click();
-              break;
-            }
-          }
-        }
-        setTimeout(f, 300);
-        return;
-      }
-      const ta = sr.querySelector(
-        "textarea[maxlength='200']"
-      );
-      if (ta) {
-        ta.value = reason.slice(0, 200);
-        ta.dispatchEvent(new Event("input", { bubbles: true }));
-        ta.dispatchEvent(new Event("change", { bubbles: true }));
-        log(TAG$6, "✅ 已自动填写举报理由");
-        return;
-      }
-      if (Date.now() - s < 4e3) setTimeout(f, 300);
-    };
-    setTimeout(f, 600);
-  }
-  async function copyReason(reason) {
-    const ok = await copyToClipboard(reason);
-    if (ok) showToast("✅ 已复制 AI 判定理由，请粘贴到举报框 (Cmd+V)");
-    return ok;
-  }
-  const TAG$5 = "[ruozhi-filter]";
-  function foldEl(el, info, verdict, style = "classic") {
-    var _a, _b, _c, _d, _e, _f;
-    try {
-      if (el.style.display === "none") return false;
-      const labelMap = {
-        low: "⚠️ 轻微不适",
-        medium: "🚫 违规言论",
-        high: "⛔ 严重违规",
-        block: "🛑 永久拉黑"
-      };
-      const label = labelMap[verdict.severity] ?? "🚫 已过滤";
-      const severityAccent = {
-        low: "#c8c8c8",
-        medium: "#d4a574",
-        high: "#d47574",
-        block: "#b87070"
-      };
-      const accent = severityAccent[verdict.severity] ?? "#ccc";
-      const showReportBtn = verdict.severity === "medium" || verdict.severity === "high" || verdict.severity === "block";
-      const reportBtnsHTML = showReportBtn ? `<div style="margin-top:8px;display:flex;gap:8px">
-  <button class="ruozhi-copy-reason" style="padding:3px 10px;font-size:12px;border:1px solid #d4a574;border-radius:4px;background:#fff;color:#d4a574;cursor:pointer">📋 复制理由</button>
-  <button class="ruozhi-report-btn" style="padding:3px 10px;font-size:12px;border:1px solid #d47574;border-radius:4px;background:#fff;color:#d47574;cursor:pointer">🚨 举报此评论</button>
-</div>` : "";
-      const html = (() => {
-        switch (style) {
-          case "classic":
-            return `<div class="ruozhi-folded" style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:8px 12px;margin:4px 0;font-size:13px;color:#856404;cursor:pointer;user-select:none;font-family:system-ui,sans-serif">
-<span style="margin-right:8px">${label}</span><span style="font-weight:600">${esc(info.uname)}</span><span style="margin:0 8px;color:#ccc">|</span><span style="font-size:12px;color:#aaa">${esc(verdict.reason)}</span><span class="ruozhi-fold-arrow" data-collapsed="▼ 展开" data-expanded="▲ 收起" style="float:right;font-size:11px;color:#999">▼ 展开</span>
-</div><div class="ruozhi-original" style="display:none;padding:8px 12px;background:#f8f9fa;border-left:3px solid #ffc107;margin:4px 0;border-radius:0 6px 6px 0;font-size:13px">
-<div style="margin-bottom:6px;font-size:12px;color:#999">🧠 AI判定: <strong>${esc(verdict.reason)}</strong></div>
-<div style="color:#333;white-space:pre-wrap;word-break:break-word">${esc(info.message)}</div>${reportBtnsHTML}</div>`;
-          case "dim":
-            return `<div class="ruozhi-folded" style="padding:1px 8px;margin:1px 0;font-size:9px;color:#ddd;cursor:pointer;user-select:none;font-family:system-ui,sans-serif;line-height:1.2;transition:color .15s,background .15s;border-radius:4px"
-  onmouseenter="this.style.color='#bbb';this.style.background='#fafafa'" onmouseleave="this.style.color='#ddd';this.style.background='transparent'">
-<span style="opacity:0.6">···</span>
-</div><div class="ruozhi-original" style="display:none;padding:4px 8px;margin:0 0 2px 0;font-size:11px;color:#bbb;background:#fafafa;border-left:2px solid #eee;border-radius:0 4px 4px 0">
-<div style="margin-bottom:2px;font-size:10px;color:#ccc">${esc(verdict.reason)}</div>
-<div style="color:#bbb;white-space:pre-wrap;word-break:break-word">${esc(info.message)}</div>${reportBtnsHTML}</div>`;
-          default:
-            return `<div class="ruozhi-folded" style="background:#fafafa;border-left:3px solid ${accent};padding:6px 12px;margin:4px 0;font-size:12px;color:#aaa;cursor:pointer;user-select:none;font-family:system-ui,sans-serif">
-<span style="margin-right:6px">${label}</span><span style="color:#999">${esc(info.uname)}</span><span class="ruozhi-fold-arrow" data-collapsed="▾" data-expanded="▴" style="float:right;font-size:10px;color:#ccc">▾</span>
-</div><div class="ruozhi-original" style="display:none;padding:6px 12px;background:#fafafa;border-left:3px solid #ddd;margin:0 0 4px 0;font-size:12px;color:#999">
-<div style="margin-bottom:4px;font-size:11px;color:#bbb">AI判定: ${esc(verdict.reason)}</div>
-<div style="color:#bbb;white-space:pre-wrap;word-break:break-word">${esc(info.message)}</div>${reportBtnsHTML}</div>`;
-        }
-      })();
-      const wrapper = document.createElement("div");
-      wrapper.innerHTML = html;
-      const foldElDiv = wrapper.firstElementChild;
-      const origElDiv = foldElDiv.nextElementSibling;
-      (_a = el.parentNode) == null ? void 0 : _a.insertBefore(foldElDiv, el);
-      (_b = el.parentNode) == null ? void 0 : _b.insertBefore(origElDiv, el);
-      el.style.display = "none";
-      foldElDiv.addEventListener("click", () => {
-        const collapsed = origElDiv.style.display === "none";
-        origElDiv.style.display = collapsed ? "block" : "none";
-        const arrow = foldElDiv.querySelector(
-          ".ruozhi-fold-arrow"
-        );
-        if (arrow) {
-          arrow.textContent = collapsed ? arrow.dataset.expanded ?? arrow.textContent : arrow.dataset.collapsed ?? arrow.textContent;
-        }
-      });
-      const blRecord = isBlacklistedSync(info.mid, info.uname);
-      if (blRecord) {
-        origElDiv.insertAdjacentHTML(
-          "beforeend",
-          `<div style="margin-top:8px;display:flex;gap:8px">
-  <button class="ruozhi-unblock-btn" style="padding:3px 10px;font-size:12px;border:1px solid #28a745;border-radius:4px;background:#fff;color:#28a745;cursor:pointer">↩️ 取消拉黑</button>
-</div>`
-        );
-        (_c = origElDiv.querySelector(".ruozhi-unblock-btn")) == null ? void 0 : _c.addEventListener("click", async (e) => {
-          e.stopPropagation();
-          try {
-            const hash = commentHash(info.message, info.mid);
-            await removeFromBlacklist(blRecord.mid);
-            await deleteCommentFromCache(hash);
-            recordLearning({
-              type: "unblock",
-              message: info.message,
-              aiReason: blRecord.reason,
-              aiSeverity: blRecord.severity,
-              uname: info.uname,
-              videoTitle: currentContext.videoTitle
-            });
-            el.style.display = "";
-            foldElDiv.remove();
-            origElDiv.remove();
-          } catch (err) {
-            console.error(TAG$5, "❌ 取消拉黑失败:", err);
-          }
-        });
-      } else {
-        origElDiv.insertAdjacentHTML(
-          "beforeend",
-          `<div style="margin-top:8px;display:flex;gap:8px">
-  <button class="ruozhi-misjudge-btn" style="padding:3px 10px;font-size:12px;border:1px solid #17a2b8;border-radius:4px;background:#fff;color:#17a2b8;cursor:pointer">✅ 误判，展开</button>
-</div>`
-        );
-        (_d = origElDiv.querySelector(".ruozhi-misjudge-btn")) == null ? void 0 : _d.addEventListener("click", async (e) => {
-          e.stopPropagation();
-          const hash = commentHash(info.message, info.mid);
-          await deleteCommentFromCache(hash);
-          recordLearning({
-            type: "misjudge",
-            message: info.message,
-            aiReason: verdict.reason,
-            aiSeverity: verdict.severity,
-            uname: info.uname,
-            videoTitle: currentContext.videoTitle
-          });
-          el.style.display = "";
-          foldElDiv.remove();
-          origElDiv.remove();
-        });
-      }
-      if (showReportBtn) {
-        (_e = origElDiv.querySelector(".ruozhi-copy-reason")) == null ? void 0 : _e.addEventListener("click", (e) => {
-          e.stopPropagation();
-          copyReason(verdict.reason);
-        });
-        (_f = origElDiv.querySelector(".ruozhi-report-btn")) == null ? void 0 : _f.addEventListener("click", (e) => {
-          e.stopPropagation();
-          triggerReport(el, verdict.reason);
-        });
-      }
-      return true;
-    } catch {
-      return false;
-    }
-  }
-  function hideEl(el) {
-    try {
-      el.style.display = "none";
-      return true;
-    } catch {
-      return false;
     }
   }
   const TAG$4 = "[ruozhi-filter]";
-  const blacklistButtonInjected = /* @__PURE__ */ new WeakSet();
-  const BL_BTN_STYLE = {
-    position: "relative",
-    zIndex: "1",
-    float: "right",
-    marginTop: "4px",
-    marginRight: "4px",
-    padding: "1px 8px",
-    fontSize: "11px",
-    color: "#aaa",
-    background: "rgba(255,255,255,0.88)",
-    border: "1px solid #e0e0e0",
-    borderRadius: "10px",
-    cursor: "pointer",
-    userSelect: "none",
-    fontFamily: "system-ui, -apple-system, sans-serif",
-    lineHeight: "18px",
-    whiteSpace: "nowrap",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-    transition: "color 0.15s, border-color 0.15s, background 0.15s, box-shadow 0.15s"
-  };
-  const BL_BTN_HOVER = {
-    color: "#d9534f",
-    borderColor: "#d9534f",
-    background: "#fff5f5"
-  };
-  const BL_BTN_DONE = {
-    color: "#d9534f",
-    borderColor: "#f5c6cb",
-    background: "#fff0f0",
-    boxShadow: "none",
-    cursor: "default",
-    pointerEvents: "none"
-  };
-  function applyStyles(el, styles) {
-    Object.assign(el.style, styles);
-  }
-  function injectManualBlacklistButton(el, info) {
-    if (blacklistButtonInjected.has(el)) return;
-    blacklistButtonInjected.add(el);
-    const parent = el.parentNode;
-    if (!parent) return;
-    const btn = document.createElement("span");
-    btn.textContent = "🚫 拉黑";
-    btn.title = `将 ${info.uname} 加入黑名单`;
-    applyStyles(btn, BL_BTN_STYLE);
-    parent.insertBefore(btn, el);
-    btn.addEventListener("mouseenter", () => {
-      if (btn.dataset.done !== "1") applyStyles(btn, BL_BTN_HOVER);
-    });
-    btn.addEventListener("mouseleave", () => {
-      if (btn.dataset.done !== "1") applyStyles(btn, BL_BTN_STYLE);
-    });
-    btn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      const config = getConfig();
-      if (config.blacklistConfirm !== false && !confirm(
-        `确定要将用户 "${info.uname}" 加入黑名单吗？
-该用户的所有评论将被隐藏。`
-      )) {
-        return;
-      }
-      try {
-        await addToBlacklist({
-          mid: info.mid,
-          uname: info.uname,
-          rpid: info.rpid,
-          message: info.message,
-          reason: "[手动拉黑]",
-          videoTitle: currentContext.videoTitle,
-          videoUrl: window.location.href,
-          timestamp: Date.now(),
-          severity: "block",
-          source: "manual"
-        });
-        recordLearning({
-          type: "manual_blacklist",
-          message: info.message,
-          uname: info.uname,
-          videoTitle: currentContext.videoTitle
-        });
-        log(TAG$4, `🚫 手动拉黑: ${info.uname}`);
-        if (config.foldMode === "none") {
-          hideEl(el);
-        } else {
-          foldEl(
-            el,
-            info,
-            { reason: "[手动拉黑]", severity: "block" },
-            config.foldMode
-          );
-        }
-        btn.dataset.done = "1";
-        btn.textContent = "✅ 已拉黑";
-        applyStyles(btn, BL_BTN_DONE);
-      } catch (err) {
-        console.error(TAG$4, "❌ 手动拉黑失败:", err);
-      }
-    });
-  }
-  const TAG$3 = "[ruozhi-filter]";
   async function filterReplies(config, replies, ctx, stats) {
     const violations = /* @__PURE__ */ new Map();
     let newBlacklistEntries = 0;
@@ -1857,7 +1563,7 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
               stats.severityCounts[v.severity] = (stats.severityCounts[v.severity] ?? 0) + 1;
             }
             if ((v.severity === "block" || v.severity === "high") && reply) {
-              log(TAG$3, `🚫 自动拉黑: uid=${v.mid} ${reply.member.uname}`);
+              log(TAG$4, `Auto-blocking: uid=${v.mid} ${reply.member.uname}`);
               await addToBlacklist({
                 mid: v.mid,
                 uname: reply.member.uname,
@@ -1875,22 +1581,22 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
           }
         }
       } catch (err) {
-        console.error(TAG$3, "❌ AI判定失败:", err);
+        console.error(TAG$4, "AI judgment failed:", err);
       }
     } else if (needAICheck.length > 0 && !config.apiKey) {
-      warn(TAG$3, "⚠️ 未配置 API Key，跳过 AI 判定");
+      warn(TAG$4, "No API key configured，跳过 AI 判定");
     }
     if (stats) stats.lastUpdate = Date.now();
     return { violations, newBlacklistEntries };
   }
-  const TAG$2 = "[ruozhi-filter]";
+  const TAG$3 = "[ruozhi-filter]";
   function fullPageDiagnostic() {
     var _a, _b;
-    log(TAG$2, "══════ 诊断 ══════");
+    log(TAG$3, "══════ 诊断 ══════");
     const bc = document.querySelector("bili-comments");
     log(
-      TAG$2,
-      `📦 bili-comments: ${bc ? "✅ shadowRoot=" + !!bc.shadowRoot + " children=" + bc.children.length : "❌ 未找到"}`
+      TAG$3,
+      `bili-comments: ${bc ? "shadowRoot=" + !!bc.shadowRoot + " children=" + bc.children.length : "not found"}`
     );
     const containerSelectors = [
       "#comment",
@@ -1910,22 +1616,22 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
         const id = first.id ? `#${first.id}` : "(无id)";
         const cls = first.className ? "." + first.className.split(" ").slice(0, 3).join(".") : "(无class)";
         log(
-          TAG$2,
-          `  📌 "${sel}" → ${els.length}个 ${first.tagName.toLowerCase()}${id}${cls}`
+          TAG$3,
+          `   "${sel}" → ${els.length}个 ${first.tagName.toLowerCase()}${id}${cls}`
         );
       }
     }
     if (bc && bc.shadowRoot) {
       const sr = bc.shadowRoot;
       const allNodes = sr.querySelectorAll("*");
-      log(TAG$2, `🔬 ShadowRoot 总节点: ${allNodes.length}`);
+      log(TAG$3, `🔬 ShadowRoot 总节点: ${allNodes.length}`);
       const tagCounts = /* @__PURE__ */ new Map();
       allNodes.forEach((n) => {
         const t = n.tagName.toLowerCase();
         tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
       });
       log(
-        TAG$2,
+        TAG$3,
         `  标签分布: ${[...tagCounts.entries()].map(([k, v]) => `${k}x${v}`).join(", ")}`
       );
       const itemChecks = [
@@ -1938,16 +1644,16 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
       ];
       for (const sel of itemChecks) {
         const count = sr.querySelectorAll(sel).length;
-        log(TAG$2, `  🎯 "${sel}" → ${count}个`);
+        log(TAG$3, `  🎯 "${sel}" → ${count}个`);
       }
-      log(TAG$2, "📋 ShadowRoot 直接子元素:");
+      log(TAG$3, "ShadowRoot 直接子元素:");
       for (const child of sr.children) {
         const tag = child.tagName.toLowerCase();
         const id = child.id ? `#${child.id}` : "";
         const cls = child.className ? "." + child.className.split(" ").slice(0, 3).join(".") : "";
         const text = ((_a = child.innerText) == null ? void 0 : _a.slice(0, 60)) ?? "";
         const childCount = child.querySelectorAll("*").length;
-        log(TAG$2, `  <${tag}${id}${cls}> 子元素:${childCount} text:"${text}"`);
+        log(TAG$3, `  <${tag}${id}${cls}> 子元素:${childCount} text:"${text}"`);
         if (childCount > 0 && childCount <= 30) {
           for (const c2 of child.children) {
             const t2 = c2.tagName.toLowerCase();
@@ -1956,8 +1662,8 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
             const txt2 = ((_b = c2.innerText) == null ? void 0 : _b.slice(0, 50)) ?? "";
             const dataAttrs = c2 instanceof HTMLElement ? c2.getAttributeNames().filter((a) => a.startsWith("data-")).join(", ") : "";
             log(
-              TAG$2,
-              `    <${t2}${id2}${cls2}>${dataAttrs ? " [" + dataAttrs + "]" : ""} "${txt2}"`
+              TAG$3,
+              `   <${t2}${id2}${cls2}>${dataAttrs ? " [" + dataAttrs + "]" : ""} "${txt2}"`
             );
           }
         }
@@ -1971,23 +1677,23 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
       ".video-data",
       "section"
     ];
-    log(TAG$2, "📐 页面结构:");
+    log(TAG$3, "📐 页面结构:");
     for (const sel of mainSections) {
       const els = document.querySelectorAll(sel);
-      if (els.length > 0) log(TAG$2, `  ${sel}: ${els.length}个`);
+      if (els.length > 0) log(TAG$3, `  ${sel}: ${els.length}个`);
     }
-    log(TAG$2, "══════ 完成 ══════");
+    log(TAG$3, "══════ 完成 ══════");
   }
   function inspectShadowRoot() {
     const bc = document.querySelector("bili-comments");
     if (!bc || !bc.shadowRoot) {
-      log(TAG$2, "❌ bili-comments 或其 shadowRoot 未找到");
+      log(TAG$3, "bili-comments 或其 shadowRoot 未找到");
       return;
     }
     const sr = bc.shadowRoot;
-    log(TAG$2, "══════ ShadowRoot 完整探查 ══════");
-    log(TAG$2, `总节点数: ${sr.querySelectorAll("*").length}`);
-    log(TAG$2, `直接子元素数: ${sr.children.length}`);
+    log(TAG$3, "══════ ShadowRoot 完整探查 ══════");
+    log(TAG$3, `总节点数: ${sr.querySelectorAll("*").length}`);
+    log(TAG$3, `直接子元素数: ${sr.children.length}`);
     function dump(el, depth = 0) {
       var _a, _b;
       if (depth > 4) return;
@@ -1997,11 +1703,11 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
       const cls = el.className ? "." + el.className.split(" ").slice(0, 3).join(".") : "";
       const attrs = el instanceof HTMLElement ? el.getAttributeNames().filter((a) => a !== "class" && a !== "id").map((a) => `${a}="${el.getAttribute(a)}"`.slice(0, 60)).join(" ") : "";
       const text = ((_b = (_a = el.innerText) == null ? void 0 : _a.slice(0, 80)) == null ? void 0 : _b.replace(/\n/g, " ")) ?? "";
-      log(TAG$2, `${indent}<${tag}${id}${cls}> ${attrs} "${text}"`);
+      log(TAG$3, `${indent}<${tag}${id}${cls}> ${attrs} "${text}"`);
       if (el.children.length <= 4) {
         for (const c of el.children) dump(c, depth + 1);
       } else if (depth < 3) {
-        log(TAG$2, `${indent}  ... ${el.children.length}个子元素，取前4个`);
+        log(TAG$3, `${indent}  ... ${el.children.length}个子元素，取前4个`);
         for (let i = 0; i < Math.min(4, el.children.length); i++) {
           dump(el.children[i], depth + 1);
         }
@@ -2010,9 +1716,9 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
     for (const child of sr.children) {
       dump(child, 0);
     }
-    log(TAG$2, "══════ 探查完成 ══════");
+    log(TAG$3, "══════ 探查完成 ══════");
   }
-  const TAG$1 = "[ruozhi-filter]";
+  const TAG$2 = "[ruozhi-filter]";
   let pendingBatch = [];
   let batchTimer = null;
   const scannedRpids = /* @__PURE__ */ new Set();
@@ -2028,13 +1734,13 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
   function scanPage() {
     const root = getCommentRoot();
     if (!root) {
-      log(TAG$1, "🔍 scanPage: 未找到评论区根节点");
+      log(TAG$2, "scanPage: 未找到评论区根节点");
       return;
     }
     const items = findCommentElements(root);
     log(
-      TAG$1,
-      `🔍 scanPage: 找到 ${items.length} 个评论元素, root=${root === document ? "document" : root.tagName || "shadowRoot"}`
+      TAG$2,
+      `scanPage: 找到 ${items.length} 个评论元素, root=${root === document ? "document" : root.tagName || "shadowRoot"}`
     );
     if (items.length === 0) return;
     let found = 0;
@@ -2106,7 +1812,7 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
     if (pendingBatch.length === 0 || isFlushing) return;
     isFlushing = true;
     const batch = pendingBatch.splice(0);
-    log(TAG$1, `🚀 AI判定: ${batch.length} 条评论`);
+    log(TAG$2, `AI judging: ${batch.length} 条评论`);
     const config = getConfig();
     if (!currentContext.videoTitle) extractVideoInfo();
     const replies = batch.map((p) => ({
@@ -2131,7 +1837,7 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
       );
       ruozhiStats.totalScanned += batch.length;
       if (result.violations.size > 0) {
-        log(TAG$1, `🛡️ ${result.violations.size}/${batch.length} 条违规`);
+        log(TAG$2, ` ${result.violations.size}/${batch.length} 条违规`);
         let cleaned = 0;
         for (const [rpid, v] of result.violations) {
           const p = batch.find((x) => x.rpid === rpid);
@@ -2151,7 +1857,7 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
       }
       saveStats(ruozhiStats);
     } catch (err) {
-      console.error(TAG$1, "❌ AI失败:", err);
+      console.error(TAG$2, "AI failure:", err);
     } finally {
       isFlushing = false;
     }
@@ -2174,7 +1880,7 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
       childList: true,
       subtree: true
     });
-    log(TAG$1, "👁️ MutationObserver 已绑定到评论根节点");
+    log(TAG$2, " MutationObserver 已绑定到评论根节点");
     scanPage();
   }
   function watchScrollLoading() {
@@ -2210,6 +1916,290 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
     uw.__ruozhi_inspect = () => inspectShadowRoot();
     uw.__ruozhi_reset_stats = () => resetStats();
   }
+  const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', Helvetica, Arial, sans-serif";
+  const THEMES = {
+    // ── Claude 风格：温润橙调 / Anthropic 品牌 ──
+    claude: {
+      bg: "#faf8f5",
+      surface: "#f5f1eb",
+      border: "#e8e3dc",
+      text: "#2d2a26",
+      secondary: "#8b8680",
+      muted: "#bfbab3",
+      accent: "#d97757",
+      accentHover: "#c56544",
+      textOnAccent: "#ffffff",
+      blue: "#5b8db8",
+      blueBg: "#eef3f8",
+      red: "#cc5a4a",
+      redBg: "#faf0ed",
+      amber: "#c08a45",
+      amberBg: "#faf3e9",
+      green: "#6a9b71",
+      greenBg: "#eef4ef",
+      purple: "#8b7bab",
+      purpleBg: "#f3eff7",
+      shadow: "0 0 0 1px rgba(0,0,0,0.06), 0 8px 32px rgba(0,0,0,0.12)",
+      foldBg: "#fef9e7",
+      foldBorder: "#f0d060",
+      foldText: "#6b5a10",
+      foldMuted: "#a09870",
+      inputPlaceholder: "#bfbab3"
+    },
+    // ── GitHub Light 风格：高对比 / 清晰锐利 ──
+    github: {
+      bg: "#ffffff",
+      surface: "#f6f8fa",
+      border: "#d0d7de",
+      text: "#1f2328",
+      secondary: "#656d76",
+      muted: "#8b949e",
+      accent: "#24292f",
+      accentHover: "#1b1f24",
+      textOnAccent: "#ffffff",
+      blue: "#0969da",
+      blueBg: "#ddf4ff",
+      red: "#cf222e",
+      redBg: "#ffebe9",
+      amber: "#9a6700",
+      amberBg: "#fff8c5",
+      green: "#1a7f37",
+      greenBg: "#dafbe1",
+      purple: "#8250df",
+      purpleBg: "#fbefff",
+      shadow: "0 0 0 1px rgba(0,0,0,0.06), 0 8px 32px rgba(0,0,0,0.12)",
+      foldBg: "#fef9e7",
+      foldBorder: "#f0d060",
+      foldText: "#6b5a10",
+      foldMuted: "#a09870",
+      inputPlaceholder: "#8b949e"
+    },
+    // ── Dark Modern：现代暗色 / VS Code 风格 ──
+    dark: {
+      bg: "#1e1e1e",
+      surface: "#252526",
+      border: "#3e3e42",
+      text: "#cccccc",
+      secondary: "#9d9d9d",
+      muted: "#6e6e6e",
+      accent: "#0078d4",
+      accentHover: "#1a8cff",
+      textOnAccent: "#ffffff",
+      blue: "#4fc1ff",
+      blueBg: "#1a3a4a",
+      red: "#f44747",
+      redBg: "#3d1f1f",
+      amber: "#cca700",
+      amberBg: "#3d3520",
+      green: "#4ec9b0",
+      greenBg: "#1d3d38",
+      purple: "#c586c0",
+      purpleBg: "#35253a",
+      shadow: "0 0 0 1px rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.5)",
+      foldBg: "#332b00",
+      foldBorder: "#665500",
+      foldText: "#cca700",
+      foldMuted: "#8a7a40",
+      inputPlaceholder: "#5a5a5a"
+    }
+  };
+  let COLOR = THEMES.github;
+  function ensureStyleElement() {
+    let el = document.getElementById(
+      "ruozhi-dynamic-styles"
+    );
+    if (!el) {
+      el = document.createElement("style");
+      el.id = "ruozhi-dynamic-styles";
+      document.head.appendChild(el);
+    }
+    return el;
+  }
+  function updateDynamicStyles() {
+    const el = ensureStyleElement();
+    el.textContent = `
+/* ── placeholder ── */
+#ruozhi-panel input::placeholder,
+#ruozhi-panel textarea::placeholder {
+  color: ${COLOR.inputPlaceholder};
+  opacity: 1;
+}
+
+/* ── focus ring ── */
+#ruozhi-panel input:focus,
+#ruozhi-panel textarea:focus,
+#ruozhi-panel select:focus {
+  border-color: ${COLOR.accent};
+  box-shadow: 0 0 0 2px ${COLOR.accent}22;
+  outline: none;
+}
+
+/* ── autofill override ── */
+#ruozhi-panel input:-webkit-autofill,
+#ruozhi-panel textarea:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px ${COLOR.surface} inset !important;
+  -webkit-text-fill-color: ${COLOR.text} !important;
+  caret-color: ${COLOR.text};
+}
+
+/* ── select: custom arrow + color-scheme ── */
+#ruozhi-panel select {
+  color-scheme: ${COLOR === THEMES.dark ? "dark" : "light"};
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='${COLOR.secondary.replace("#", "%23")}' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 32px;
+  cursor: pointer;
+}
+
+/* ── 自定义滚动条 ── */
+#ruozhi-panel ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+#ruozhi-panel ::-webkit-scrollbar-track {
+  background: transparent;
+}
+#ruozhi-panel ::-webkit-scrollbar-thumb {
+  background: ${COLOR.border};
+  border-radius: 3px;
+}
+#ruozhi-panel ::-webkit-scrollbar-thumb:hover {
+  background: ${COLOR.muted};
+}
+
+/* ── Tab 导航 ── */
+.ruozhi-tab {
+  transition: all 0.2s ease !important;
+  border-radius: 6px 6px 0 0 !important;
+  margin: 0 2px;
+  position: relative;
+}
+.ruozhi-tab:hover {
+  background: ${COLOR.surface} !important;
+  color: ${COLOR.text} !important;
+}
+.ruozhi-tab.active {
+  background: ${COLOR.accent} !important;
+  color: ${COLOR.textOnAccent} !important;
+  border-bottom-color: ${COLOR.accent} !important;
+  font-weight: 600 !important;
+}
+
+/* ── 按钮 hover 过渡 ── */
+#ruozhi-panel button {
+  transition: all 0.15s ease;
+}
+#ruozhi-panel button:hover {
+  filter: brightness(0.96);
+}
+#ruozhi-panel button:active {
+  transform: scale(0.97);
+}
+
+/* ── 复选框标签 hover ── */
+#ruozhi-panel label {
+  transition: opacity 0.15s;
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: 0 -4px;
+}
+#ruozhi-panel label:hover {
+  opacity: 0.8;
+}
+
+/* ── 统计卡片 hover ── */
+.ruozhi-stat-card {
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.ruozhi-stat-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+}
+
+/* ── 知识库条目 hover ── */
+.ruozhi-kb-item:hover {
+  background: ${COLOR.surface};
+}
+
+/* ── 面板关闭按钮 ── */
+#ruozhi-panel-close {
+  transition: all 0.15s ease;
+}
+#ruozhi-panel-close:hover {
+  background: ${COLOR.redBg} !important;
+  color: ${COLOR.red} !important;
+}
+
+/* ── 状态消息动画 ── */
+#ruozhi-status {
+  transition: opacity 0.2s ease;
+}
+`;
+  }
+  function updateFabTheme() {
+    const btn = document.getElementById("ruozhi-fab");
+    const badge = document.getElementById("ruozhi-fab-badge");
+    if (btn) {
+      btn.style.background = COLOR.accent;
+      btn.style.color = COLOR.textOnAccent;
+    }
+    if (badge) {
+      badge.style.background = COLOR.red;
+      badge.style.color = COLOR.textOnAccent;
+    }
+  }
+  function applyTheme(name) {
+    if (THEMES[name]) {
+      COLOR = THEMES[name];
+      updateDynamicStyles();
+      updateFabTheme();
+    }
+  }
+  function inputStyle() {
+    return `width:100%;padding:8px 10px;border:1px solid ${COLOR.border};border-radius:4px;font-size:14px;box-sizing:border-box;font-family:${FONT};outline:none;background:${COLOR.surface};color:${COLOR.text};color-scheme:${COLOR === THEMES.dark ? "dark" : "light"}`;
+  }
+  function esc(s) {
+    const d = document.createElement("div");
+    d.textContent = s;
+    return d.innerHTML;
+  }
+  function escapeAttr(s) {
+    return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+  function showToast(msg, duration = 2500) {
+    const t = document.createElement("div");
+    t.textContent = msg;
+    Object.assign(t.style, {
+      position: "fixed",
+      bottom: "60px",
+      left: "50%",
+      transform: "translateX(-50%) translateY(10px)",
+      background: COLOR.accent,
+      color: COLOR.textOnAccent,
+      padding: "10px 20px",
+      borderRadius: "6px",
+      fontSize: "14px",
+      zIndex: "999999",
+      fontFamily: FONT,
+      pointerEvents: "none",
+      opacity: "0",
+      transition: "opacity 0.25s, transform 0.25s",
+      boxShadow: "0 4px 16px rgba(0,0,0,0.15)"
+    });
+    document.body.appendChild(t);
+    requestAnimationFrame(() => {
+      t.style.opacity = "1";
+      t.style.transform = "translateX(-50%) translateY(0)";
+    });
+    setTimeout(() => {
+      t.style.opacity = "0";
+      t.style.transform = "translateX(-50%) translateY(-10px)";
+      setTimeout(() => t.remove(), 300);
+    }, duration);
+  }
   let panelVisible = false;
   let panelRoot = null;
   let fabBadge = null;
@@ -2222,9 +2212,21 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
         if (typeof parsed.foldMode === "boolean") {
           parsed.foldMode = parsed.foldMode ? "classic" : "none";
         }
+        if (parsed.blacklistConfirm === void 0) {
+          parsed.blacklistConfirm = true;
+        }
+        if (parsed.devMode === void 0) {
+          parsed.devMode = false;
+        }
         if (parsed.filterDimensions) {
           parsed.prompt = (parsed.prompt || "") + "\n\n违规判定维度：\n" + parsed.filterDimensions;
           delete parsed.filterDimensions;
+        }
+        if (!parsed.theme) {
+          parsed.theme = "claude";
+        }
+        if (parsed.fontScale === void 0) {
+          parsed.fontScale = 1;
         }
         return { ...DEFAULT_CONFIG, ...parsed };
       }
@@ -2248,6 +2250,7 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
     }
   }
   function injectUI(config, onConfigChange) {
+    applyTheme(config.theme ?? "github");
     injectFloatingButton(config, onConfigChange);
   }
   function injectFloatingButton(config, onConfigChange) {
@@ -2261,49 +2264,53 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
-      gap: "4px"
+      gap: "4px",
+      zoom: String(config.fontScale ?? 1)
     });
     const badge = document.createElement("div");
     badge.id = "ruozhi-fab-badge";
     badge.textContent = "0";
     Object.assign(badge.style, {
-      fontSize: "11px",
-      fontWeight: "700",
-      color: "#fff",
-      background: "#d9534f",
-      borderRadius: "10px",
-      padding: "2px 6px",
-      minWidth: "18px",
+      fontSize: "10px",
+      fontWeight: "600",
+      color: COLOR.textOnAccent,
+      background: COLOR.red,
+      borderRadius: "9px",
+      padding: "1px 5px",
+      minWidth: "16px",
       textAlign: "center",
       display: "none",
-      lineHeight: "16px",
-      boxShadow: "0 2px 6px rgba(217,83,79,0.3)"
+      lineHeight: "15px",
+      fontFamily: FONT
     });
     fabBadge = badge;
     const btn = document.createElement("div");
     btn.id = "ruozhi-fab";
-    btn.innerHTML = "🧠";
-    btn.title = "信息茧房放大器 - 设置";
+    btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
+    btn.title = "评论过滤器 — 设置";
     Object.assign(btn.style, {
-      width: "44px",
-      height: "44px",
-      borderRadius: "50%",
-      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-      color: "#fff",
+      width: "40px",
+      height: "40px",
+      borderRadius: "10px",
+      background: COLOR.accent,
+      color: COLOR.textOnAccent,
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      fontSize: "20px",
       cursor: "pointer",
-      boxShadow: "0 4px 12px rgba(102,126,234,0.4)",
-      transition: "transform 0.2s",
+      boxShadow: "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.06)",
+      transition: "background 0.15s, transform 0.2s, box-shadow 0.2s",
       userSelect: "none"
     });
     btn.addEventListener("mouseenter", () => {
-      btn.style.transform = "scale(1.1)";
+      btn.style.background = COLOR.accentHover;
+      btn.style.transform = "scale(1.08)";
+      btn.style.boxShadow = "0 4px 12px rgba(0,0,0,0.18)";
     });
     btn.addEventListener("mouseleave", () => {
+      btn.style.background = COLOR.accent;
       btn.style.transform = "scale(1)";
+      btn.style.boxShadow = "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.06)";
     });
     btn.addEventListener(
       "click",
@@ -2333,15 +2340,18 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
       position: "fixed",
       bottom: "170px",
       right: "20px",
-      width: "400px",
-      maxHeight: "600px",
-      background: "#fff",
-      borderRadius: "12px",
-      boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+      width: "420px",
+      maxHeight: "620px",
+      background: COLOR.bg,
+      borderRadius: "8px",
+      boxShadow: COLOR.shadow,
       zIndex: "99998",
       display: "none",
       overflow: "hidden",
-      fontFamily: "system-ui, -apple-system, sans-serif"
+      fontFamily: FONT,
+      color: COLOR.text,
+      colorScheme: COLOR === THEMES.dark ? "dark" : "light",
+      zoom: String(config.fontScale ?? 1)
     });
     root.innerHTML = buildPanelHTML(config);
     document.body.appendChild(root);
@@ -2349,213 +2359,249 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
     return root;
   }
   function buildPanelHTML(config) {
+    function cb(b) {
+      return b ? "checked" : "";
+    }
+    function sel(v, t) {
+      return v === t ? "selected" : "";
+    }
+    const is = inputStyle();
+    const opt = `background:${COLOR.bg};color:${COLOR.text}`;
+    const kbItems = (config.knowledgeBase ?? []).map(
+      (e, i) => `<div class="ruozhi-kb-item" style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid ${COLOR.border}"><span style="flex:1;word-break:break-word;font-size:13px">${esc(e)}</span><button class="ruozhi-kb-del" data-index="${i}" style="padding:1px 6px;font-size:11px;background:none;border:1px solid ${COLOR.border};border-radius:3px;color:${COLOR.secondary};cursor:pointer;font-family:${FONT}">&times;</button></div>`
+    ).join("");
+    const secLabel = `font-size:11px;font-weight:600;color:${COLOR.secondary};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em`;
+    const chkRow = `font-size:13px;color:${COLOR.text};display:flex;align-items:center;gap:8px;cursor:pointer;font-family:${FONT}`;
+    const subChkRow = `font-size:12px;color:${COLOR.secondary};display:flex;align-items:center;gap:8px;cursor:pointer;font-family:${FONT}`;
+    const cardStyle = `padding:0 0 14px 0;margin-bottom:14px;border-bottom:1px solid ${COLOR.border}`;
     return `
-<div style="display:flex;flex-direction:column;max-height:600px">
-  <div style="padding:16px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-radius:12px 12px 0 0">
-    <div style="font-size:16px;font-weight:700">🧠 信息茧房放大器</div>
-    <div style="font-size:12px;opacity:0.8;margin-top:4px">AI驱动的降智言论过滤器</div>
+<div style="display:flex;flex-direction:column;max-height:620px">
+  <!-- 头部 -->
+  <div style="padding:16px 20px;border-bottom:1px solid ${COLOR.border};display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <div style="font-size:16px;font-weight:700;color:${COLOR.text};letter-spacing:-0.01em">评论过滤器</div>
+      <div style="font-size:12px;color:${COLOR.muted};margin-top:1px">AI 驱动的低质评论过滤</div>
+    </div>
+    <button id="ruozhi-panel-close" style="width:28px;height:28px;border:1px solid ${COLOR.border};border-radius:6px;background:${COLOR.bg};color:${COLOR.secondary};font-size:14px;cursor:pointer;font-family:${FONT};display:flex;align-items:center;justify-content:center;line-height:1">&times;</button>
   </div>
 
-  <div id="ruozhi-tabs" style="display:flex;border-bottom:1px solid #eee">
-    <button class="ruozhi-tab active" data-tab="settings" style="flex:1;padding:10px;border:none;background:none;cursor:pointer;font-size:13px;color:#667eea;border-bottom:2px solid #667eea">⚙️ 设置</button>
-    <button class="ruozhi-tab" data-tab="stats" style="flex:1;padding:10px;border:none;background:none;cursor:pointer;font-size:13px;color:#999">📊 统计</button>
-    <button class="ruozhi-tab" data-tab="blacklist" style="flex:1;padding:10px;border:none;background:none;cursor:pointer;font-size:13px;color:#999">📋 黑名单</button>
-    <button class="ruozhi-tab" data-tab="learning" style="flex:1;padding:10px;border:none;background:none;cursor:pointer;font-size:13px;color:#999">🧠 学习</button>
-    <button class="ruozhi-tab" data-tab="knowledge" style="flex:1;padding:10px;border:none;background:none;cursor:pointer;font-size:13px;color:#999">📚 知识库</button>
+  <!-- Tab 导航 -->
+  <div id="ruozhi-tabs" style="display:flex;border-bottom:1px solid ${COLOR.border};gap:4px">
+    ${["设置", "统计", "学习"].map(
+    (name, idx) => `<button class="ruozhi-tab${idx === 0 ? " active" : ""}" data-tab="${name}" style="flex:1;padding:8px 12px;border:none;background:${idx === 0 ? COLOR.accent : "transparent"};cursor:pointer;font-size:13px;font-family:${FONT};color:${idx === 0 ? COLOR.textOnAccent : COLOR.secondary};border-bottom:2px solid ${idx === 0 ? COLOR.accent : "transparent"};font-weight:${idx === 0 ? "600" : "400"};border-radius:6px 6px 0 0">${name}</button>`
+  ).join("")}
   </div>
 
-  <div id="ruozhi-tab-settings" style="overflow-y:auto;flex:1;padding:12px 16px">
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">🔑 DeepSeek API Key</label>
-      <input id="ruozhi-apikey" type="password" value="${escapeAttr(config.apiKey)}" placeholder="sk-xxxxxxxx"
-        style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box">
+  <!-- ========== 设置 Tab ========== -->
+  <div id="ruozhi-tab-settings" style="overflow-y:auto;flex:1;padding:14px 20px 20px">
+
+    <!-- API 设置卡片 -->
+    <div style="${cardStyle}">
+      <div style="${secLabel}">🔑 API 配置</div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:12px;color:${COLOR.secondary};margin-bottom:4px">API Key</div>
+        <input id="ruozhi-apikey" type="password" value="${escapeAttr(config.apiKey)}" placeholder="sk-xxxxxxxx" style="${is}">
+      </div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:12px;color:${COLOR.secondary};margin-bottom:4px">接口地址</div>
+        <input id="ruozhi-endpoint" type="text" value="${escapeAttr(config.apiEndpoint)}" style="${is}">
+      </div>
+      <div style="margin-bottom:8px">
+        <div style="font-size:12px;color:${COLOR.secondary};margin-bottom:4px">Token 单价 (¥ / 百万)</div>
+        <input id="ruozhi-price" type="number" value="${config.pricePerMToken}" step="0.1" min="0" style="width:100px;${is}">
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button id="ruozhi-test" style="padding:7px 16px;border:1px solid ${COLOR.border};border-radius:4px;background:${COLOR.bg};color:${COLOR.text};font-size:13px;cursor:pointer;font-family:${FONT}">测试连接</button>
+        <span id="ruozhi-test-status" style="font-size:12px;min-width:80px"></span>
+      </div>
     </div>
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">🌐 API 地址</label>
-      <input id="ruozhi-endpoint" type="text" value="${escapeAttr(config.apiEndpoint)}"
-        style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box">
+
+    <!-- 过滤规则 -->
+    <div style="${cardStyle}">
+      <div style="${secLabel}">📋 过滤规则</div>
+      <div style="margin-bottom:8px">
+        <div style="font-size:12px;color:${COLOR.secondary};margin-bottom:4px">Prompt 指令</div>
+        <textarea id="ruozhi-prompt" rows="5" style="${is};resize:vertical;line-height:1.5">${esc(config.prompt)}</textarea>
+      </div>
+      <div>
+        <div style="font-size:12px;color:${COLOR.secondary};margin-bottom:4px">折叠样式</div>
+        <select id="ruozhi-fold-mode" style="${is}">
+          <option value="classic" ${sel(config.foldMode, "classic")} style="${opt}">经典 — 黄底醒目标记</option>
+          <option value="light" ${sel(config.foldMode, "light")} style="${opt}">极简 — 细灰线标记</option>
+          <option value="dim" ${sel(config.foldMode, "dim")} style="${opt}">弱化 — 几乎不可见</option>
+          <option value="none" ${sel(config.foldMode, "none")} style="${opt}">隐藏 — 直接移除评论</option>
+        </select>
+      </div>
     </div>
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">📝 过滤规则 Prompt（含违规判定维度）</label>
-      <textarea id="ruozhi-prompt" rows="8"
-        style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;resize:vertical;box-sizing:border-box">${escapeHtml(config.prompt)}</textarea>
+
+    <!-- 外观卡片 -->
+    <div style="${cardStyle}">
+      <div style="${secLabel}">🎨 外观</div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:12px;color:${COLOR.secondary};margin-bottom:4px">UI 主题</div>
+        <select id="ruozhi-theme" style="${is}">
+          <option value="github" ${sel(config.theme, "github")} style="${opt}">🐙 GitHub — 清晰锐利</option>
+          <option value="claude" ${sel(config.theme, "claude")} style="${opt}">🧡 Claude — 温润橙调</option>
+          <option value="dark" ${sel(config.theme, "dark")} style="${opt}">🌙 Dark Modern — 现代暗色</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:12px;color:${COLOR.secondary};margin-bottom:4px">字体大小</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button id="ruozhi-font-down" style="width:32px;height:32px;border:1px solid ${COLOR.border};border-radius:4px;background:${COLOR.surface};color:${COLOR.text};font-size:16px;cursor:pointer;font-family:${FONT};line-height:1;display:flex;align-items:center;justify-content:center">−</button>
+          <span id="ruozhi-font-scale-label" style="font-size:14px;color:${COLOR.text};min-width:48px;text-align:center;font-family:${FONT};font-weight:600">${(config.fontScale ?? 1).toFixed(1)}x</span>
+          <button id="ruozhi-font-up" style="width:32px;height:32px;border:1px solid ${COLOR.border};border-radius:4px;background:${COLOR.surface};color:${COLOR.text};font-size:16px;cursor:pointer;font-family:${FONT};line-height:1;display:flex;align-items:center;justify-content:center">+</button>
+          <button id="ruozhi-font-reset" style="padding:5px 10px;border:1px solid ${COLOR.border};border-radius:4px;background:${COLOR.bg};color:${COLOR.secondary};font-size:12px;cursor:pointer;font-family:${FONT}">重置</button>
+        </div>
+      </div>
     </div>
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;color:#666;display:flex;align-items:center;gap:8px;cursor:pointer">
-        <input id="ruozhi-enable-ai" type="checkbox" ${config.enableAI ? "checked" : ""}>
-        启用 AI 过滤
-      </label>
+
+    <!-- 过滤选项卡片 -->
+    <div style="${cardStyle}">
+      <div style="${secLabel}">⚙️ 过滤选项</div>
+      <div style="margin-bottom:8px">
+        <label style="${chkRow}">
+          <input id="ruozhi-enable-ai" type="checkbox" ${cb(config.enableAI)} style="accent-color:${COLOR.accent}">
+          启用 AI 过滤
+        </label>
+      </div>
+      <div style="margin-bottom:6px">
+        <label style="${chkRow}">
+          <input id="ruozhi-enable-bl" type="checkbox" ${cb(config.enableBlacklist)} style="accent-color:${COLOR.accent}">
+          启用本地黑名单
+        </label>
+        <div id="ruozhi-bl-confirm-row" style="margin-top:6px;margin-left:24px">
+          <label style="${subChkRow}">
+            <input id="ruozhi-bl-confirm" type="checkbox" ${cb(config.blacklistConfirm)} style="accent-color:${COLOR.accent}">
+            拉黑前弹出确认
+          </label>
+        </div>
+      </div>
+      <div style="margin-bottom:6px">
+        <label style="${chkRow}">
+          <input id="ruozhi-learning" type="checkbox" ${cb(config.learningEnabled)} style="accent-color:${COLOR.accent}">
+          启用自我学习
+        </label>
+        <div style="margin-top:3px;margin-left:24px;font-size:11px;color:${COLOR.muted}">基于你的纠正行为自动优化判定策略</div>
+      </div>
     </div>
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">👁️ 折叠样式</label>
-      <select id="ruozhi-fold-mode"
-        style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box;background:#fff">
-        <option value="classic" ${config.foldMode === "classic" ? "selected" : ""}>⚠️ 经典警告 — 黄底醒目提示</option>
-        <option value="light" ${config.foldMode === "light" ? "selected" : ""}>▎极简标记 — 灰线弱提示</option>
-        <option value="dim" ${config.foldMode === "dim" ? "selected" : ""}>· 隐形弱化 — 几乎不可见</option>
-        <option value="none" ${config.foldMode === "none" ? "selected" : ""}>🚫 完全隐藏 — 直接移除评论</option>
-      </select>
+
+    <!-- 请求内容卡片 -->
+    <div style="${cardStyle}">
+      <div style="${secLabel}">📡 请求内容控制</div>
+      <div style="margin-bottom:4px"><label style="${subChkRow}"><input id="ruozhi-send-uname" type="checkbox" ${cb(config.sendUname)} style="accent-color:${COLOR.accent}">附带用户名</label></div>
+      <div style="margin-bottom:4px"><label style="${subChkRow}"><input id="ruozhi-send-mid" type="checkbox" ${cb(config.sendMid)} style="accent-color:${COLOR.accent}">附带用户 ID</label></div>
+      <div style="margin-bottom:4px"><label style="${subChkRow}"><input id="ruozhi-send-videodesc" type="checkbox" ${cb(config.sendVideoDesc)} style="accent-color:${COLOR.accent}">附带视频简介</label></div>
+      <div>
+        <label style="${chkRow}">
+          <input id="ruozhi-dev-mode" type="checkbox" ${cb(config.devMode)} style="accent-color:${COLOR.accent}">
+          开发者模式
+        </label>
+      </div>
     </div>
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;color:#666;display:flex;align-items:center;gap:8px;cursor:pointer">
-        <input id="ruozhi-enable-bl" type="checkbox" ${config.enableBlacklist ? "checked" : ""}>
-        启用本地黑名单
-      </label>
+
+    <!-- 操作区 -->
+    <div style="padding-top:8px;margin-top:12px">
+      <button id="ruozhi-save" style="width:100%;padding:10px;border:none;border-radius:6px;background:${COLOR.accent};color:${COLOR.textOnAccent};font-size:14px;font-weight:600;cursor:pointer;font-family:${FONT};margin-bottom:8px">保存设置</button>
+
+      <div style="font-size:11px;font-weight:600;color:${COLOR.muted};margin-bottom:6px;margin-top:12px">数据管理</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <button id="ruozhi-clear-cache" style="padding:7px;border:1px solid ${COLOR.border};border-radius:4px;background:${COLOR.bg};color:${COLOR.secondary};font-size:12px;cursor:pointer;font-family:${FONT}">清除缓存</button>
+        <button id="ruozhi-clear-stats" style="padding:7px;border:1px solid ${COLOR.border};border-radius:4px;background:${COLOR.bg};color:${COLOR.secondary};font-size:12px;cursor:pointer;font-family:${FONT}">重置统计</button>
+        <button id="ruozhi-clear-bl" style="padding:7px;border:1px solid ${COLOR.red}33;border-radius:4px;background:${COLOR.bg};color:${COLOR.red};font-size:12px;cursor:pointer;font-family:${FONT}">清空黑名单</button>
+        <button id="ruozhi-clear-learning" style="padding:7px;border:1px solid ${COLOR.amber}33;border-radius:4px;background:${COLOR.bg};color:${COLOR.amber};font-size:12px;cursor:pointer;font-family:${FONT}">清除学习记录</button>
+      </div>
     </div>
-    <div id="ruozhi-bl-confirm-row" style="margin-bottom:12px;margin-left:24px">
-      <label style="font-size:12px;color:#666;display:flex;align-items:center;gap:8px;cursor:pointer">
-        <input id="ruozhi-bl-confirm" type="checkbox" ${config.blacklistConfirm ? "checked" : ""}>
-        拉黑时弹出确认框（关闭可直接拉黑）
-      </label>
-    </div>
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">💰 Token单价 (元/百万)</label>
-      <input id="ruozhi-price" type="number" value="${config.pricePerMToken}" step="0.1" min="0"
-        style="width:100px;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box">
-    </div>
-    <div style="margin-bottom:8px;font-size:12px;color:#999;font-weight:600">📦 请求内容控制（关闭可节省Token）</div>
-    <div style="margin-bottom:8px">
-      <label style="font-size:12px;color:#666;display:flex;align-items:center;gap:8px;cursor:pointer">
-        <input id="ruozhi-send-uname" type="checkbox" ${config.sendUname ? "checked" : ""}>
-        附带用户名 (uname)
-      </label>
-    </div>
-    <div style="margin-bottom:8px">
-      <label style="font-size:12px;color:#666;display:flex;align-items:center;gap:8px;cursor:pointer">
-        <input id="ruozhi-send-mid" type="checkbox" ${config.sendMid ? "checked" : ""}>
-        附带用户ID (mid)
-      </label>
-    </div>
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;color:#666;display:flex;align-items:center;gap:8px;cursor:pointer">
-        <input id="ruozhi-send-videodesc" type="checkbox" ${config.sendVideoDesc ? "checked" : ""}>
-        附带视频简介
-      </label>
-    </div>
-    <div style="margin-bottom:8px;font-size:12px;color:#999;font-weight:600">🧠 AI自我学习</div>
-    <div style="margin-bottom:8px">
-      <label style="font-size:12px;color:#666;display:flex;align-items:center;gap:8px;cursor:pointer">
-        <input id="ruozhi-learning" type="checkbox" ${config.learningEnabled ? "checked" : ""}>
-        启用自我学习（根据纠正行为自动调整判定）
-      </label>
-    </div>
-    <div id="ruozhi-learning-info" style="margin-bottom:12px;margin-left:24px;font-size:11px;color:#999">
-      记录「取消拉黑」「误判展开」「手动拉黑」行为，自动优化AI判定策略
-    </div>
-    <div style="margin-bottom:8px;font-size:12px;color:#999;font-weight:600">🛠️ 开发者</div>
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;color:#666;display:flex;align-items:center;gap:8px;cursor:pointer">
-        <input id="ruozhi-dev-mode" type="checkbox" ${config.devMode ? "checked" : ""}>
-        开发者模式（显示调试日志）
-      </label>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:16px">
-      <button id="ruozhi-save" style="flex:1;padding:10px;border:none;border-radius:8px;background:#667eea;color:#fff;font-size:14px;cursor:pointer;font-weight:600">💾 保存设置</button>
-      <button id="ruozhi-test" style="padding:10px 16px;border:1px solid #667eea;border-radius:8px;background:#fff;color:#667eea;font-size:13px;cursor:pointer">🔌 测试连接</button>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:8px">
-      <button id="ruozhi-clear-cache" style="flex:1;padding:6px;border:1px solid #ddd;border-radius:6px;background:#fff;color:#999;font-size:12px;cursor:pointer">🗑️ 清除缓存</button>
-      <button id="ruozhi-clear-stats" style="flex:1;padding:6px;border:1px solid #e6a23c;border-radius:6px;background:#fff;color:#e6a23c;font-size:12px;cursor:pointer">📊 重置统计</button>
-      <button id="ruozhi-clear-bl" style="flex:1;padding:6px;border:1px solid #f56c6c;border-radius:6px;background:#fff;color:#f56c6c;font-size:12px;cursor:pointer">⚠️ 清空黑名单</button>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:4px">
-      <button id="ruozhi-clear-learning" style="flex:1;padding:6px;border:1px solid #e6a23c;border-radius:6px;background:#fff;color:#e6a23c;font-size:12px;cursor:pointer">🧠 清除学习记录</button>
-    </div>
-    <div id="ruozhi-status" style="margin-top:8px;font-size:12px;color:#666;min-height:18px"></div>
+
+    <div id="ruozhi-status" style="margin-top:10px;font-size:13px;min-height:20px;text-align:center"></div>
   </div>
 
-  <div id="ruozhi-tab-stats" style="display:none;overflow-y:auto;flex:1;padding:12px 16px">
-    <div id="ruozhi-stats-content" style="font-size:13px">
-      <div style="text-align:center;color:#999;padding:20px">暂无统计数据，等待首次 API 调用...</div>
+  <!-- ========== 统计 Tab（含黑名单） ========== -->
+  <div id="ruozhi-tab-stats" style="display:none;overflow-y:auto;flex:1;padding:16px 20px">
+    <div id="ruozhi-stats-content" style="font-size:14px">
+      <div style="text-align:center;color:${COLOR.muted};padding:24px">暂无统计数据，等待首次 API 调用…</div>
+    </div>
+    <div id="ruozhi-blacklist-panel" style="display:none;margin-top:16px;border-top:1px solid ${COLOR.border};padding-top:14px">
+      <div style="font-size:12px;font-weight:600;color:${COLOR.secondary};margin-bottom:8px">黑名单</div>
+      <div id="ruozhi-blacklist-content" style="font-family:${FONT}"></div>
+      <div id="ruozhi-bl-more" style="display:none;text-align:center;padding:8px">
+        <button id="ruozhi-bl-loadmore" style="padding:4px 20px;font-size:12px;border:1px solid ${COLOR.border};border-radius:4px;background:${COLOR.bg};color:${COLOR.secondary};cursor:pointer;font-family:${FONT}">加载更多</button>
+      </div>
     </div>
   </div>
 
-  <div id="ruozhi-tab-blacklist" style="display:none;overflow-y:auto;flex:1;max-height:400px">
-    <div id="ruozhi-blacklist-content" style="padding:8px 0">加载中...</div>
-  </div>
-
-  <div id="ruozhi-tab-learning" style="display:none;overflow-y:auto;flex:1;max-height:400px">
-    <div id="ruozhi-learning-content" style="padding:8px 0">加载中...</div>
-  </div>
-
-  <div id="ruozhi-tab-knowledge" style="display:none;overflow-y:auto;flex:1;padding:12px 16px">
-    <div style="font-size:12px;color:#666;margin-bottom:8px">添加语境知识，辅助AI判断反讽/引用/特定称呼，避免误伤友军</div>
-    <div style="margin-bottom:8px;display:flex;gap:6px">
-      <input id="ruozhi-kb-input" type="text" placeholder="例如：XX是对XX的歧视性称呼"
-        style="flex:1;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;box-sizing:border-box">
-      <button id="ruozhi-kb-add" style="padding:6px 12px;border:none;border-radius:6px;background:#667eea;color:#fff;font-size:12px;cursor:pointer;white-space:nowrap">添加</button>
+  <!-- ========== 学习 Tab（含知识库） ========== -->
+  <div id="ruozhi-tab-learning" style="display:none;overflow-y:auto;flex:1;padding:16px 20px">
+    <!-- 语境知识库（置顶） -->
+    <div id="ruozhi-kb-panel" style="display:none;margin-bottom:16px">
+      <div style="font-size:11px;font-weight:600;color:${COLOR.secondary};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em">📚 语境知识库</div>
+      <div style="font-size:12px;color:${COLOR.muted};margin-bottom:10px">添加语境知识，辅助 AI 判断反讽、引用或特定称呼，避免误伤。</div>
+      <div style="margin-bottom:10px;display:flex;gap:6px">
+        <input id="ruozhi-kb-input" type="text" placeholder="例如：XX 是对 XX 的歧视性称呼"
+          style="flex:1;${is}">
+        <button id="ruozhi-kb-add" style="padding:7px 14px;border:none;border-radius:4px;background:${COLOR.accent};color:${COLOR.textOnAccent};font-size:13px;cursor:pointer;white-space:nowrap;font-family:${FONT}">添加</button>
+      </div>
+      <div id="ruozhi-kb-list" style="font-size:13px;color:${COLOR.text}">${kbItems || '<div style="text-align:center;color:' + COLOR.muted + ';padding:20px">暂无条目</div>'}</div>
+      <div id="ruozhi-kb-status" style="margin-top:10px;font-size:13px;min-height:18px"></div>
     </div>
-    <div id="ruozhi-kb-list" style="font-size:11px;color:#666">
-      ${(config.knowledgeBase ?? []).map((e, i) => `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #f5f5f5"><span style="flex:1;word-break:break-word">📌 ${escapeHtml(e)}</span><button class="ruozhi-kb-del" data-index="${i}" style="padding:1px 6px;font-size:10px;background:none;border:1px solid #ddd;border-radius:3px;color:#999;cursor:pointer">✕</button></div>`).join("")}
-    </div>
-    <div id="ruozhi-kb-status" style="margin-top:8px;font-size:12px;color:#666;min-height:18px"></div>
+    <!-- 学习记录 -->
+    <div id="ruozhi-learning-content" style="font-family:${FONT}">加载中…</div>
   </div>
 </div>`;
   }
-  function escapeAttr(s) {
-    return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-  }
-  function escapeHtml(s) {
-    const div = document.createElement("div");
-    div.textContent = s;
-    return div.innerHTML;
-  }
   function bindPanelEvents(root, config, onConfigChange) {
-    var _a, _b, _c, _d, _e, _f;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k;
     const tabs = root.querySelectorAll(".ruozhi-tab");
+    (_a = root.querySelector("#ruozhi-panel-close")) == null ? void 0 : _a.addEventListener("click", () => {
+      if (panelRoot) {
+        panelRoot.style.display = "none";
+        panelVisible = false;
+      }
+    });
     tabs.forEach((tab) => {
       tab.addEventListener("click", async () => {
         tabs.forEach((t2) => {
-          t2.style.color = "#999";
+          t2.classList.remove("active");
+          t2.style.background = "transparent";
+          t2.style.color = COLOR.secondary;
+          t2.style.fontWeight = "400";
           t2.style.borderBottomColor = "transparent";
         });
         const t = tab;
-        t.style.color = "#667eea";
-        t.style.borderBottomColor = "#667eea";
+        t.classList.add("active");
+        t.style.background = COLOR.accent;
+        t.style.color = COLOR.textOnAccent;
+        t.style.fontWeight = "600";
+        t.style.borderBottomColor = COLOR.accent;
         const tabName = t.dataset.tab;
-        const settingsEl = root.querySelector(
-          "#ruozhi-tab-settings"
+        const sections = {
+          设置: root.querySelector("#ruozhi-tab-settings"),
+          统计: root.querySelector("#ruozhi-tab-stats"),
+          学习: root.querySelector("#ruozhi-tab-learning")
+        };
+        Object.values(sections).forEach(
+          (el) => el && (el.style.display = "none")
         );
-        const statsEl = root.querySelector("#ruozhi-tab-stats");
-        const blEl = root.querySelector("#ruozhi-tab-blacklist");
-        const learningEl = root.querySelector(
-          "#ruozhi-tab-learning"
-        );
-        const knowledgeEl = root.querySelector(
-          "#ruozhi-tab-knowledge"
-        );
-        settingsEl.style.display = "none";
-        statsEl.style.display = "none";
-        blEl.style.display = "none";
-        learningEl.style.display = "none";
-        knowledgeEl.style.display = "none";
-        if (tabName === "settings") {
-          settingsEl.style.display = "block";
-        } else if (tabName === "stats") {
-          statsEl.style.display = "block";
+        if (tabName === "设置" && sections["设置"]) {
+          sections["设置"].style.display = "block";
+        } else if (tabName === "统计" && sections["统计"]) {
+          sections["统计"].style.display = "block";
           updateStatsPanel();
-        } else if (tabName === "blacklist") {
-          blEl.style.display = "block";
-          const contentEl = root.querySelector("#ruozhi-blacklist-content");
-          if (contentEl) {
-            contentEl.innerHTML = await buildBlacklistPanelHTML();
-            bindBlacklistEvents(contentEl);
-          }
-        } else if (tabName === "learning") {
-          learningEl.style.display = "block";
+          loadBlacklistChunk(root, 0);
+        } else if (tabName === "学习" && sections["学习"]) {
+          sections["学习"].style.display = "block";
           const contentEl = root.querySelector("#ruozhi-learning-content");
           if (contentEl) {
             contentEl.innerHTML = buildLearningPanelHTML();
             bindLearningEvents(contentEl);
           }
-        } else if (tabName === "knowledge") {
-          knowledgeEl.style.display = "block";
+          showKBPanel(root);
           bindKnowledgeEvents(root);
         }
       });
     });
-    (_a = root.querySelector("#ruozhi-save")) == null ? void 0 : _a.addEventListener("click", () => {
-      var _a2, _b2, _c2, _d2, _e2, _f2, _g, _h, _i, _j, _k, _l, _m;
+    (_b = root.querySelector("#ruozhi-save")) == null ? void 0 : _b.addEventListener("click", () => {
+      var _a2, _b2, _c2, _d2, _e2, _f2, _g2, _h2, _i2, _j2, _k2, _l, _m, _n, _o;
       let storedConfig = {};
       try {
         storedConfig = JSON.parse(GM_getValue("ruozhi-config", "{}"));
@@ -2563,33 +2609,35 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
       }
       const newConfig = {
         ...config,
-        // 保护字段：从存储中取最新值，避免被闭包捕获的旧config覆盖
         learnedProfile: storedConfig.learnedProfile ?? config.learnedProfile ?? "",
         learningCorrections: storedConfig.learningCorrections ?? config.learningCorrections ?? [],
         lastRefinedCount: storedConfig.lastRefinedCount ?? config.lastRefinedCount ?? 0,
         knowledgeBase: storedConfig.knowledgeBase ?? config.knowledgeBase ?? [],
-        // UI 表单字段
-        apiKey: ((_a2 = root.querySelector("#ruozhi-apikey")) == null ? void 0 : _a2.value) ?? "",
-        apiEndpoint: ((_b2 = root.querySelector("#ruozhi-endpoint")) == null ? void 0 : _b2.value) ?? config.apiEndpoint,
-        prompt: ((_c2 = root.querySelector("#ruozhi-prompt")) == null ? void 0 : _c2.value) ?? config.prompt,
-        enableAI: ((_d2 = root.querySelector("#ruozhi-enable-ai")) == null ? void 0 : _d2.checked) ?? true,
-        foldMode: ((_e2 = root.querySelector("#ruozhi-fold-mode")) == null ? void 0 : _e2.value) ?? "classic",
-        enableBlacklist: ((_f2 = root.querySelector("#ruozhi-enable-bl")) == null ? void 0 : _f2.checked) ?? true,
-        blacklistConfirm: ((_g = root.querySelector("#ruozhi-bl-confirm")) == null ? void 0 : _g.checked) ?? true,
-        devMode: ((_h = root.querySelector("#ruozhi-dev-mode")) == null ? void 0 : _h.checked) ?? false,
+        theme: ((_a2 = root.querySelector("#ruozhi-theme")) == null ? void 0 : _a2.value) ?? "github",
+        apiKey: ((_b2 = root.querySelector("#ruozhi-apikey")) == null ? void 0 : _b2.value) ?? "",
+        apiEndpoint: ((_c2 = root.querySelector("#ruozhi-endpoint")) == null ? void 0 : _c2.value) ?? config.apiEndpoint,
+        prompt: ((_d2 = root.querySelector("#ruozhi-prompt")) == null ? void 0 : _d2.value) ?? config.prompt,
+        enableAI: ((_e2 = root.querySelector("#ruozhi-enable-ai")) == null ? void 0 : _e2.checked) ?? true,
+        foldMode: ((_f2 = root.querySelector("#ruozhi-fold-mode")) == null ? void 0 : _f2.value) ?? "classic",
+        enableBlacklist: ((_g2 = root.querySelector("#ruozhi-enable-bl")) == null ? void 0 : _g2.checked) ?? true,
+        blacklistConfirm: ((_h2 = root.querySelector("#ruozhi-bl-confirm")) == null ? void 0 : _h2.checked) ?? true,
+        devMode: ((_i2 = root.querySelector("#ruozhi-dev-mode")) == null ? void 0 : _i2.checked) ?? false,
         pricePerMToken: parseFloat(
-          ((_i = root.querySelector("#ruozhi-price")) == null ? void 0 : _i.value) || "1.1"
+          ((_j2 = root.querySelector("#ruozhi-price")) == null ? void 0 : _j2.value) || "1.1"
         ) || 1.1,
-        sendUname: ((_j = root.querySelector("#ruozhi-send-uname")) == null ? void 0 : _j.checked) ?? false,
-        sendMid: ((_k = root.querySelector("#ruozhi-send-mid")) == null ? void 0 : _k.checked) ?? false,
-        sendVideoDesc: ((_l = root.querySelector("#ruozhi-send-videodesc")) == null ? void 0 : _l.checked) ?? false,
-        learningEnabled: ((_m = root.querySelector("#ruozhi-learning")) == null ? void 0 : _m.checked) ?? true
+        sendUname: ((_k2 = root.querySelector("#ruozhi-send-uname")) == null ? void 0 : _k2.checked) ?? false,
+        sendMid: ((_l = root.querySelector("#ruozhi-send-mid")) == null ? void 0 : _l.checked) ?? false,
+        sendVideoDesc: ((_m = root.querySelector("#ruozhi-send-videodesc")) == null ? void 0 : _m.checked) ?? false,
+        learningEnabled: ((_n = root.querySelector("#ruozhi-learning")) == null ? void 0 : _n.checked) ?? true,
+        fontScale: parseFloat(
+          ((_o = root.querySelector("#ruozhi-font-scale-label")) == null ? void 0 : _o.textContent) ?? "1.0"
+        ) || 1
       };
       saveConfig(newConfig);
       onConfigChange(newConfig);
-      showStatus(root, "✅ 设置已保存", "#28a745");
+      showPanelStatus(root, "已保存", COLOR.green);
     });
-    (_b = root.querySelector("#ruozhi-enable-bl")) == null ? void 0 : _b.addEventListener("change", () => {
+    (_c = root.querySelector("#ruozhi-enable-bl")) == null ? void 0 : _c.addEventListener("change", () => {
       var _a2;
       const checked = (_a2 = root.querySelector("#ruozhi-enable-bl")) == null ? void 0 : _a2.checked;
       const confirmRow = root.querySelector(
@@ -2597,52 +2645,172 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
       );
       if (confirmRow) confirmRow.style.display = checked ? "" : "none";
     });
-    (_c = root.querySelector("#ruozhi-test")) == null ? void 0 : _c.addEventListener("click", async () => {
+    (_d = root.querySelector("#ruozhi-test")) == null ? void 0 : _d.addEventListener("click", async () => {
       var _a2;
       const apiKey = (_a2 = root.querySelector("#ruozhi-apikey")) == null ? void 0 : _a2.value;
+      const testStatus = root.querySelector("#ruozhi-test-status");
       if (!apiKey) {
-        showStatus(root, "⚠️ 请先填写 API Key", "#ffc107");
+        if (testStatus) {
+          testStatus.textContent = "请先填写 API Key";
+          testStatus.style.color = COLOR.amber;
+        }
         return;
       }
-      showStatus(root, "⏳ 正在测试...", "#666");
+      if (testStatus) {
+        testStatus.textContent = "测试中…";
+        testStatus.style.color = COLOR.secondary;
+      }
       const ok = await testAPIConnection({ ...config, apiKey });
-      showStatus(
-        root,
-        ok ? "✅ 连接成功" : "❌ 连接失败，请检查API Key和地址",
-        ok ? "#28a745" : "#d9534f"
-      );
+      if (testStatus) {
+        testStatus.textContent = ok ? "✓ 连接成功" : "✗ 连接失败";
+        testStatus.style.color = ok ? COLOR.green : COLOR.red;
+      }
     });
-    (_d = root.querySelector("#ruozhi-clear-cache")) == null ? void 0 : _d.addEventListener("click", async () => {
+    (_e = root.querySelector("#ruozhi-clear-cache")) == null ? void 0 : _e.addEventListener("click", async () => {
       await clearCache();
-      showStatus(root, "✅ 缓存已清除", "#28a745");
+      showPanelStatus(root, "缓存已清除", COLOR.green);
     });
-    (_e = root.querySelector("#ruozhi-clear-bl")) == null ? void 0 : _e.addEventListener("click", async () => {
-      if (!confirm("确定要清空所有黑名单记录吗？此操作不可撤销。")) return;
+    (_f = root.querySelector("#ruozhi-clear-bl")) == null ? void 0 : _f.addEventListener("click", async () => {
+      if (!confirm("确定清空所有黑名单记录？此操作不可撤销。")) return;
       await clearBlacklist();
-      showStatus(root, "✅ 黑名单已清空", "#28a745");
+      _blCache = null;
+      showPanelStatus(root, "黑名单已清空", COLOR.green);
       const blContent = root.querySelector("#ruozhi-blacklist-content");
       if (blContent)
-        blContent.innerHTML = '<div style="padding:16px;text-align:center;color:#999">暂无黑名单记录，一片祥和 🎉</div>';
+        blContent.innerHTML = `<div style="padding:24px;text-align:center;color:${COLOR.muted}">暂无黑名单记录</div>`;
     });
-    (_f = root.querySelector("#ruozhi-clear-learning")) == null ? void 0 : _f.addEventListener("click", () => {
-      if (!confirm("确定要清除所有AI自我学习记录吗？此操作不可撤销。")) return;
+    (_g = root.querySelector("#ruozhi-clear-learning")) == null ? void 0 : _g.addEventListener("click", () => {
+      if (!confirm("确定清除所有学习记录？此操作不可撤销。")) return;
       clearLearning();
-      showStatus(root, "✅ AI学习记录已清除", "#28a745");
+      showPanelStatus(root, "学习记录已清除", COLOR.green);
     });
     root.addEventListener("click", (e) => {
       const target = e.target;
       if (!target.closest("#ruozhi-clear-stats")) return;
-      if (!confirm("确定要重置所有统计数据吗？此操作不可撤销。")) return;
+      if (!confirm("确定重置所有统计数据？此操作不可撤销。")) return;
       resetStats();
       updateStatsPanel();
-      showStatus(root, "✅ 统计数据已重置", "#28a745");
+      showPanelStatus(root, "统计已重置", COLOR.green);
+    });
+    (_h = root.querySelector("#ruozhi-theme")) == null ? void 0 : _h.addEventListener("change", () => {
+      var _a2;
+      const themeName = (_a2 = root.querySelector("#ruozhi-theme")) == null ? void 0 : _a2.value;
+      if (!themeName) return;
+      applyTheme(themeName);
+      try {
+        const stored = JSON.parse(GM_getValue("ruozhi-config", "{}"));
+        stored.theme = themeName;
+        GM_setValue("ruozhi-config", JSON.stringify(stored));
+        refreshConfig({ ...config, theme: themeName });
+      } catch {
+      }
+      panelRoot == null ? void 0 : panelRoot.remove();
+      panelRoot = null;
+      panelVisible = false;
+      toggleSettingsPanel({ ...config, theme: themeName }, onConfigChange);
+    });
+    const fontLabel = root.querySelector(
+      "#ruozhi-font-scale-label"
+    );
+    const fabContainer = document.getElementById("ruozhi-fab-container");
+    function applyFontScale(scale) {
+      const clamped = Math.round(Math.min(1.5, Math.max(0.8, scale)) * 10) / 10;
+      if (fontLabel) fontLabel.textContent = clamped.toFixed(1) + "x";
+      if (panelRoot) panelRoot.style.zoom = String(clamped);
+      if (fabContainer) fabContainer.style.zoom = String(clamped);
+    }
+    (_i = root.querySelector("#ruozhi-font-down")) == null ? void 0 : _i.addEventListener("click", () => {
+      const cur = parseFloat((fontLabel == null ? void 0 : fontLabel.textContent) ?? "1.0");
+      applyFontScale(cur - 0.1);
+    });
+    (_j = root.querySelector("#ruozhi-font-up")) == null ? void 0 : _j.addEventListener("click", () => {
+      const cur = parseFloat((fontLabel == null ? void 0 : fontLabel.textContent) ?? "1.0");
+      applyFontScale(cur + 0.1);
+    });
+    (_k = root.querySelector("#ruozhi-font-reset")) == null ? void 0 : _k.addEventListener("click", () => {
+      applyFontScale(1);
     });
   }
-  function showStatus(root, msg, color) {
+  function showPanelStatus(root, msg, color) {
     const el = root.querySelector("#ruozhi-status");
     if (el) {
-      el.textContent = msg;
-      el.style.color = color;
+      el.style.opacity = "0";
+      requestAnimationFrame(() => {
+        el.textContent = msg;
+        el.style.color = color;
+        el.style.opacity = "1";
+      });
+    }
+  }
+  const BL_PAGE_SIZE = 15;
+  let _blCache = null;
+  let _blOffset = 0;
+  function showKBPanel(root) {
+    const panel = root.querySelector("#ruozhi-kb-panel");
+    if (panel) panel.style.display = "";
+  }
+  async function loadBlacklistChunk(root, offset) {
+    var _a;
+    const panel = root.querySelector("#ruozhi-blacklist-panel");
+    const contentEl = root.querySelector("#ruozhi-blacklist-content");
+    const moreEl = root.querySelector("#ruozhi-bl-more");
+    if (!panel || !contentEl) return;
+    if (_blCache === null) {
+      _blCache = await getAllBlacklist();
+      _blCache.sort((a, b) => b.timestamp - a.timestamp);
+      _blOffset = 0;
+    }
+    if (offset === 0) {
+      _blOffset = 0;
+      contentEl.innerHTML = "";
+    }
+    if (_blCache.length === 0) {
+      panel.style.display = "";
+      contentEl.innerHTML = `<div style="padding:16px;text-align:center;color:${COLOR.muted}">暂无黑名单记录</div>`;
+      if (moreEl) moreEl.style.display = "none";
+      return;
+    }
+    panel.style.display = "";
+    const chunk = _blCache.slice(_blOffset, _blOffset + BL_PAGE_SIZE);
+    _blOffset += chunk.length;
+    const fragment = chunk.map((r) => {
+      const date = new Date(r.timestamp).toLocaleString("zh-CN");
+      const mid = r.mid;
+      const srcLabel = r.source === "manual" ? "手动" : "AI";
+      const srcColor = r.source === "manual" ? COLOR.red : COLOR.blue;
+      return `
+      <div style="padding:9px 0;border-bottom:1px solid ${COLOR.border};font-size:12px;font-family:${FONT}">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span><span style="font-weight:500">${esc(r.uname)}</span> <span style="background:${srcColor};color:#fff;font-size:9px;padding:0 4px;border-radius:2px">${srcLabel}</span></span>
+          <span style="font-size:10px;color:${COLOR.secondary}">${date}</span>
+        </div>
+        <div style="color:${COLOR.secondary};margin:3px 0">${esc(r.message.slice(0, 80))}${r.message.length > 80 ? "…" : ""}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="color:${COLOR.muted};font-size:11px">${esc(r.reason)}</span>
+          <button class="ruozhi-remove-bl" data-mid="${mid}"
+            style="padding:1px 6px;font-size:10px;background:${COLOR.bg};border:1px solid ${COLOR.border};border-radius:3px;cursor:pointer;font-family:${FONT};color:${COLOR.secondary}">移除</button>
+        </div>
+      </div>`;
+    }).join("");
+    if (offset === 0) {
+      contentEl.innerHTML = fragment;
+    } else {
+      contentEl.insertAdjacentHTML("beforeend", fragment);
+    }
+    bindBlacklistEvents(contentEl);
+    if (_blOffset < _blCache.length) {
+      if (moreEl) moreEl.style.display = "";
+      const btn = root.querySelector("#ruozhi-bl-loadmore");
+      if (btn) {
+        const newBtn = btn.cloneNode(true);
+        (_a = btn.parentNode) == null ? void 0 : _a.replaceChild(newBtn, btn);
+        newBtn.addEventListener(
+          "click",
+          () => loadBlacklistChunk(root, _blOffset)
+        );
+      }
+    } else {
+      if (moreEl) moreEl.style.display = "none";
     }
   }
   function refreshKBList(root) {
@@ -2650,15 +2818,72 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
     if (!list) return;
     try {
       const raw = GM_getValue("ruozhi-config", "{}");
-      const config = JSON.parse(raw);
-      const kb = Array.isArray(config.knowledgeBase) ? config.knowledgeBase : [];
+      const cfg = JSON.parse(raw);
+      const kb = Array.isArray(cfg.knowledgeBase) ? cfg.knowledgeBase : [];
       list.innerHTML = kb.map(
-        (e, i) => `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #f5f5f5"><span style="flex:1;word-break:break-word">📌 ${escapeHtml(e)}</span><button class="ruozhi-kb-del" data-index="${i}" style="padding:1px 6px;font-size:10px;background:none;border:1px solid #ddd;border-radius:3px;color:#999;cursor:pointer">✕</button></div>`
+        (e, i) => `<div class="ruozhi-kb-item" style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid ${COLOR.border}"><span style="flex:1;word-break:break-word;font-size:13px">${esc(e)}</span><button class="ruozhi-kb-del" data-index="${i}" style="padding:1px 6px;font-size:11px;background:none;border:1px solid ${COLOR.border};border-radius:3px;color:${COLOR.secondary};cursor:pointer;font-family:${FONT}">&times;</button></div>`
       ).join("");
       if (kb.length === 0) {
-        list.innerHTML = '<div style="text-align:center;color:#ccc;padding:16px">暂无知识条目</div>';
+        list.innerHTML = `<div style="text-align:center;color:${COLOR.muted};padding:20px">暂无条目</div>`;
       }
     } catch {
+    }
+  }
+  function bindKnowledgeEvents(root) {
+    var _a, _b, _c;
+    (_a = root.querySelector("#ruozhi-kb-add")) == null ? void 0 : _a.addEventListener("click", () => {
+      var _a2;
+      const input = root.querySelector("#ruozhi-kb-input");
+      const val = (_a2 = input == null ? void 0 : input.value) == null ? void 0 : _a2.trim();
+      if (!val) return;
+      try {
+        const cfg = JSON.parse(GM_getValue("ruozhi-config", "{}"));
+        if (!Array.isArray(cfg.knowledgeBase)) cfg.knowledgeBase = [];
+        if (cfg.knowledgeBase.includes(val)) {
+          kbStatus(root, "该条目已存在", COLOR.amber);
+          return;
+        }
+        cfg.knowledgeBase.push(val);
+        GM_setValue("ruozhi-config", JSON.stringify(cfg));
+        refreshConfig(cfg);
+        input.value = "";
+        refreshKBList(root);
+        kbStatus(root, "已添加", COLOR.green);
+      } catch {
+      }
+    });
+    (_b = root.querySelector("#ruozhi-kb-input")) == null ? void 0 : _b.addEventListener("keydown", (e) => {
+      var _a2;
+      if (e.key === "Enter") {
+        (_a2 = root.querySelector("#ruozhi-kb-add")) == null ? void 0 : _a2.click();
+      }
+    });
+    (_c = root.querySelector("#ruozhi-kb-list")) == null ? void 0 : _c.addEventListener("click", (e) => {
+      const btn = e.target.closest(".ruozhi-kb-del");
+      if (!btn) return;
+      const idx = parseInt(btn.dataset.index ?? "-1");
+      if (idx < 0) return;
+      try {
+        const cfg = JSON.parse(GM_getValue("ruozhi-config", "{}"));
+        if (Array.isArray(cfg.knowledgeBase)) {
+          cfg.knowledgeBase.splice(idx, 1);
+          GM_setValue("ruozhi-config", JSON.stringify(cfg));
+          refreshConfig(cfg);
+          refreshKBList(root);
+        }
+      } catch {
+      }
+    });
+  }
+  function kbStatus(root, msg, color) {
+    const el = root.querySelector("#ruozhi-kb-status");
+    if (el) {
+      el.style.opacity = "0";
+      requestAnimationFrame(() => {
+        el.textContent = msg;
+        el.style.color = color;
+        el.style.opacity = "1";
+      });
     }
   }
   function updateStatsPanel() {
@@ -2673,42 +2898,43 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
     } catch {
     }
     const costEst = (s.totalTokens / 1e6 * price).toFixed(4);
-    let sevHTML = "";
-    const labels = {
-      low: "⚠️ 轻微",
-      medium: "🚫 违规",
-      high: "⛔ 严重",
-      block: "🛑 拉黑"
+    const sevLabels = {
+      low: "轻微",
+      medium: "违规",
+      high: "严重",
+      block: "拉黑"
     };
+    let sevHTML = "";
     for (const [sev, count] of Object.entries(s.severityCounts).sort()) {
-      const label = labels[sev] ?? sev;
-      sevHTML += `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0"><span>${label}</span><strong>${count}</strong></div>`;
+      const label = sevLabels[sev] ?? sev;
+      sevHTML += `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid ${COLOR.border};font-size:13px"><span>${label}</span><span style="font-weight:500">${count}</span></div>`;
     }
+    const ls = getLearningStats();
     contentEl.innerHTML = `
-    <div style="margin-bottom:12px">
-      <div style="font-weight:600;margin-bottom:8px;color:#333">📈 累计统计</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-        <div style="background:#f5f7fa;padding:8px;border-radius:6px;text-align:center"><div style="font-size:20px;font-weight:700;color:#909399">${s.totalScanned}</div><div style="font-size:11px;color:#999">已扫描</div></div>
-        <div style="background:#f5f7fa;padding:8px;border-radius:6px;text-align:center"><div style="font-size:20px;font-weight:700;color:#667eea">${s.totalFiltered}</div><div style="font-size:11px;color:#999">已过滤</div></div>
-        <div style="background:#f5f7fa;padding:8px;border-radius:6px;text-align:center"><div style="font-size:20px;font-weight:700;color:#764ba2">${s.apiCalls}</div><div style="font-size:11px;color:#999">API 调用</div></div>
-        <div style="background:#f5f7fa;padding:8px;border-radius:6px;text-align:center"><div style="font-size:20px;font-weight:700;color:#e6a23c">${tokensPerK}K</div><div style="font-size:11px;color:#999">Token</div></div>
-        <div style="background:#f5f7fa;padding:8px;border-radius:6px;text-align:center"><div style="font-size:20px;font-weight:700;color:#67c23a">¥${costEst}</div><div style="font-size:11px;color:#999">预估费用</div></div>
-        <div style="background:#fef0f0;padding:8px;border-radius:6px;text-align:center;cursor:pointer" id="ruozhi-clear-stats"><div style="font-size:16px;color:#f56c6c">🗑️</div><div style="font-size:11px;color:#f56c6c">重置统计</div></div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:600;color:${COLOR.secondary};margin-bottom:10px">累计统计</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+        <div class="ruozhi-stat-card" style="background:${COLOR.surface};padding:10px;border-radius:6px;text-align:center"><div style="font-size:18px;font-weight:600;color:${COLOR.secondary}">${s.totalScanned}</div><div style="font-size:10px;color:${COLOR.muted};margin-top:2px">已扫描</div></div>
+        <div class="ruozhi-stat-card" style="background:${COLOR.surface};padding:10px;border-radius:6px;text-align:center"><div style="font-size:18px;font-weight:600;color:${COLOR.text}">${s.totalFiltered}</div><div style="font-size:10px;color:${COLOR.muted};margin-top:2px">已过滤</div></div>
+        <div class="ruozhi-stat-card" style="background:${COLOR.surface};padding:10px;border-radius:6px;text-align:center"><div style="font-size:18px;font-weight:600;color:${COLOR.blue}">${s.apiCalls}</div><div style="font-size:10px;color:${COLOR.muted};margin-top:2px">API 调用</div></div>
+        <div class="ruozhi-stat-card" style="background:${COLOR.surface};padding:10px;border-radius:6px;text-align:center"><div style="font-size:18px;font-weight:600;color:${COLOR.amber}">${tokensPerK}K</div><div style="font-size:10px;color:${COLOR.muted};margin-top:2px">Token</div></div>
+        <div class="ruozhi-stat-card" style="background:${COLOR.surface};padding:10px;border-radius:6px;text-align:center"><div style="font-size:18px;font-weight:600;color:${COLOR.green}">&yen;${costEst}</div><div style="font-size:10px;color:${COLOR.muted};margin-top:2px">预估费用</div></div>
+        <div class="ruozhi-stat-card" style="background:${COLOR.redBg};padding:10px;border-radius:6px;text-align:center;cursor:pointer" id="ruozhi-clear-stats"><div style="font-size:14px;color:${COLOR.red}">重置</div><div style="font-size:10px;color:${COLOR.red};margin-top:2px">统计</div></div>
       </div>
     </div>
-    <div style="margin-top:12px"><div style="font-weight:600;margin-bottom:8px;color:#333">🏷️ 违规分布</div>${sevHTML || '<div style="color:#999;text-align:center;padding:8px">暂无</div>'}</div>
-    ${(() => {
-    const ls = getLearningStats();
-    if (ls.total === 0) return "";
-    return `<div style="margin-top:12px"><div style="font-weight:600;margin-bottom:8px;color:#333">🧠 AI学习记录</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-          <div style="background:#e8f5e9;padding:6px;border-radius:6px;text-align:center"><div style="font-size:18px;font-weight:700;color:#66bb6a">${ls.unblockCount + ls.misjudgeCount}</div><div style="font-size:10px;color:#999">纠正误判</div></div>
-          <div style="background:#fff3e0;padding:6px;border-radius:6px;text-align:center"><div style="font-size:18px;font-weight:700;color:#ff9800">${ls.manualCount}</div><div style="font-size:10px;color:#999">补充漏判</div></div>
-          <div style="background:#f3e5f5;padding:6px;border-radius:6px;text-align:center"><div style="font-size:18px;font-weight:700;color:#ab47bc">${ls.total}</div><div style="font-size:10px;color:#999">总计</div></div>
-        </div>
-      </div>`;
-  })()}
-    <div style="margin-top:12px;font-size:11px;color:#aaa;text-align:center">DeepSeek-chat ¥${price}/1M tokens · prompt: ${(s.promptTokens / 1e3).toFixed(1)}K · completion: ${(s.completionTokens / 1e3).toFixed(1)}K</div>`;
+    <div style="margin-top:16px">
+      <div style="font-size:11px;font-weight:600;color:${COLOR.secondary};margin-bottom:8px">严重度分布</div>
+      ${sevHTML || `<div style="color:${COLOR.muted};text-align:center;padding:10px;font-size:12px">暂无数据</div>`}
+    </div>
+    ${ls.total > 0 ? `<div style="margin-top:16px">
+      <div style="font-size:11px;font-weight:600;color:${COLOR.secondary};margin-bottom:8px">AI 学习</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+        <div class="ruozhi-stat-card" style="background:${COLOR.greenBg};padding:8px;border-radius:6px;text-align:center"><div style="font-size:16px;font-weight:600;color:${COLOR.green}">${ls.unblockCount + ls.misjudgeCount}</div><div style="font-size:10px;color:${COLOR.muted}">纠正误判</div></div>
+        <div class="ruozhi-stat-card" style="background:${COLOR.amberBg};padding:8px;border-radius:6px;text-align:center"><div style="font-size:16px;font-weight:600;color:${COLOR.amber}">${ls.manualCount}</div><div style="font-size:10px;color:${COLOR.muted}">补充漏判</div></div>
+        <div class="ruozhi-stat-card" style="background:${COLOR.purpleBg};padding:8px;border-radius:6px;text-align:center"><div style="font-size:16px;font-weight:600;color:${COLOR.purple}">${ls.total}</div><div style="font-size:10px;color:${COLOR.muted}">总计</div></div>
+      </div>
+    </div>` : ""}
+    <div style="margin-top:16px;font-size:10px;color:${COLOR.muted};text-align:center">DeepSeek-chat &yen;${price}/1M tokens &middot; prompt: ${(s.promptTokens / 1e3).toFixed(1)}K &middot; completion: ${(s.completionTokens / 1e3).toFixed(1)}K</div>`;
   }
   function bindBlacklistEvents(container) {
     container.querySelectorAll(".ruozhi-remove-bl").forEach((btn) => {
@@ -2716,9 +2942,9 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
         const mid = parseInt(btn.dataset.mid ?? "0");
         if (mid) {
           await removeFromBlacklist(mid);
-          const contentEl = container.querySelector("#ruozhi-blacklist-content") ?? container;
-          contentEl.innerHTML = await buildBlacklistPanelHTML();
-          bindBlacklistEvents(contentEl);
+          _blCache = null;
+          const root = container.closest("#ruozhi-panel");
+          if (root) loadBlacklistChunk(root, 0);
         }
       });
     });
@@ -2727,65 +2953,63 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
     const records = getLearningRecords();
     const profile = getLearnedProfile();
     const pendingCount = getPendingCount();
-    const profileSection = profile ? `<div style="margin:0 8px 12px 8px;padding:10px 12px;background:linear-gradient(135deg,#f0f4ff,#f8f0ff);border:1px solid #d4c5f0;border-radius:8px">
+    const profileSection = profile ? `<div style="margin:0 8px 12px 8px;padding:12px;background:${COLOR.purpleBg};border:1px solid ${COLOR.border};border-radius:6px;font-family:${FONT}">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-      <span style="font-size:12px;font-weight:700;color:#764ba2">🧠 AI学习画像（可编辑）</span>
-      <span style="font-size:10px;color:#999">每次API调用自动注入System Prompt</span>
+      <span style="font-size:12px;font-weight:600;color:${COLOR.purple}">AI 学习画像（可编辑）</span>
+      <span style="font-size:10px;color:${COLOR.secondary}">每次 API 调用自动注入</span>
     </div>
-    <textarea id="ruozhi-profile-edit" rows="4" style="width:100%;padding:8px;border:1px solid #d4c5f0;border-radius:6px;font-size:12px;color:#555;resize:vertical;box-sizing:border-box;line-height:1.6;font-family:system-ui,sans-serif">${escapeHtml(profile)}</textarea>
+    <textarea id="ruozhi-profile-edit" rows="4" style="width:100%;padding:8px;border:1px solid ${COLOR.border};border-radius:4px;font-size:12px;color:${COLOR.text};background:${COLOR.surface};resize:vertical;box-sizing:border-box;line-height:1.6;font-family:${FONT};outline:none;color-scheme:${COLOR === THEMES.dark ? "dark" : "light"}">${esc(profile)}</textarea>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
       <div style="display:flex;gap:6px">
-        <button id="ruozhi-profile-save" style="padding:3px 12px;font-size:11px;border:none;border-radius:4px;background:#764ba2;color:#fff;cursor:pointer">💾 保存画像</button>
-        <button id="ruozhi-profile-regen" style="padding:3px 12px;font-size:11px;border:1px solid #e6a23c;border-radius:4px;background:#fff;color:#e6a23c;cursor:pointer" title="忽略阈值，立即用全部学习记录重新生成画像">🔄 重新生成</button>
+        <button id="ruozhi-profile-save" style="padding:4px 12px;font-size:11px;border:none;border-radius:4px;background:${COLOR.purple};color:${COLOR.textOnAccent};cursor:pointer;font-family:${FONT}">保存画像</button>
+        <button id="ruozhi-profile-regen" style="padding:4px 12px;font-size:11px;border:1px solid ${COLOR.border};border-radius:4px;background:${COLOR.bg};color:${COLOR.amber};cursor:pointer;font-family:${FONT}" title="用全部记录重新生成画像">重新生成</button>
       </div>
-      ${pendingCount > 0 ? `<span style="font-size:10px;color:#e6a23c">⏳ 待处理纠正: ${pendingCount} 条（攒够20条后AI自动更新）</span>` : `<span style="font-size:10px;color:#67c23a">✅ 已同步（${records.length}条记录）</span>`}
+      ${pendingCount > 0 ? `<span style="font-size:10px;color:${COLOR.amber}">待处理: ${pendingCount} (满 20 条自动更新)</span>` : `<span style="font-size:10px;color:${COLOR.green}">已同步 (${records.length} 条)</span>`}
     </div>
-  </div>` : `<div style="margin:0 8px 12px 8px;padding:10px 12px;background:#f8f9fc;border:1px solid #e0e3e8;border-radius:8px;text-align:center">
-    <div style="font-size:12px;color:#999;margin-bottom:4px">🧠 尚无AI学习画像</div>
-    ${records.length > 0 ? `<div style="font-size:11px;color:#e6a23c">已收集 ${records.length} 条纠正，攒够20条后AI将自动生成画像</div>` : `<div style="font-size:11px;color:#ccc">执行「取消拉黑」「误判展开」「手动拉黑」后，AI将自动学习并生成画像</div>`}
+  </div>` : `<div style="margin:0 8px 12px 8px;padding:12px;background:${COLOR.surface};border:1px solid ${COLOR.border};border-radius:6px;text-align:center;font-family:${FONT}">
+    <div style="font-size:12px;color:${COLOR.secondary};margin-bottom:4px">尚无 AI 学习画像</div>
+    ${records.length > 0 ? `<div style="font-size:11px;color:${COLOR.amber}">已收集 ${records.length} 条纠正，满 20 条后自动生成画像</div>` : `<div style="font-size:11px;color:${COLOR.muted}">执行「取消拉黑」「误判展开」「手动拉黑」后将自动学习</div>`}
   </div>`;
-    if (records.length === 0) {
-      return profileSection;
-    }
+    if (records.length === 0) return profileSection;
     const typeLabel = {
-      unblock: "↩️ 取消拉黑",
-      misjudge: "✅ 误判纠正",
-      manual_blacklist: "🚫 补充拉黑"
+      unblock: "取消拉黑",
+      misjudge: "误判纠正",
+      manual_blacklist: "补充拉黑"
     };
     const typeColor = {
-      unblock: "#28a745",
-      misjudge: "#17a2b8",
-      manual_blacklist: "#d9534f"
+      unblock: COLOR.green,
+      misjudge: COLOR.blue,
+      manual_blacklist: COLOR.red
     };
     const rows = records.map((r, i) => {
       const date = new Date(r.timestamp).toLocaleString("zh-CN");
       const label = typeLabel[r.type] ?? r.type;
-      const color = typeColor[r.type] ?? "#999";
-      const aiReasonHTML = r.aiReason ? `<div style="font-size:11px;color:#e6a23c;margin-top:2px">⚡ AI曾判定: ${escapeHtml(r.aiReason)}${r.aiSeverity ? ` (${r.aiSeverity})` : ""}</div>` : "";
+      const color = typeColor[r.type] ?? COLOR.secondary;
+      const aiReasonHTML = r.aiReason ? `<div style="font-size:11px;color:${COLOR.amber};margin-top:2px">AI 曾判定: ${esc(r.aiReason)}${r.aiSeverity ? ` (${r.aiSeverity})` : ""}</div>` : "";
       return `
-      <div style="padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:13px">
+      <div style="padding:10px 12px;border-bottom:1px solid ${COLOR.border};font-size:13px;font-family:${FONT}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span style="color:${color};font-weight:600;font-size:12px">${label}</span>
+          <span style="color:${color};font-weight:500;font-size:12px">${label}</span>
           <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:11px;color:#ccc">${date}</span>
+            <span style="font-size:10px;color:${COLOR.muted}">${date}</span>
             <button class="ruozhi-remove-learning" data-index="${i}"
-              style="padding:1px 6px;font-size:11px;background:none;border:1px solid #ddd;border-radius:3px;color:#999;cursor:pointer">
+              style="padding:1px 6px;font-size:10px;background:none;border:1px solid ${COLOR.border};border-radius:3px;color:${COLOR.secondary};cursor:pointer;font-family:${FONT}">
               删除
             </button>
           </div>
         </div>
-        <div style="color:#666;line-height:1.5;word-break:break-word">💬 ${escapeHtml(r.message)}</div>
+        <div style="color:${COLOR.text};line-height:1.5;word-break:break-word">${esc(r.message)}</div>
         ${aiReasonHTML}
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
-          <span style="font-size:11px;color:#aaa">👤 ${escapeHtml(r.uname)}</span>
-          ${r.videoTitle ? `<span style="font-size:11px;color:#ccc">📺 ${escapeHtml(r.videoTitle.slice(0, 20))}${r.videoTitle.length > 20 ? "..." : ""}</span>` : ""}
+          <span style="font-size:10px;color:${COLOR.muted}">${esc(r.uname)}</span>
+          ${r.videoTitle ? `<span style="font-size:10px;color:${COLOR.muted}">${esc(r.videoTitle.slice(0, 20))}${r.videoTitle.length > 20 ? "…" : ""}</span>` : ""}
         </div>
       </div>`;
     }).join("");
-    const clearBtn = `<div style="padding:8px;text-align:center">
+    const clearBtn = `<div style="padding:10px;text-align:center">
     <button id="ruozhi-clear-learning-inline"
-      style="padding:4px 16px;font-size:12px;border:1px solid #f56c6c;border-radius:4px;background:#fff;color:#f56c6c;cursor:pointer">
-      ⚠️ 清空全部学习记录
+      style="padding:4px 16px;font-size:11px;border:1px solid ${COLOR.border};border-radius:4px;background:${COLOR.bg};color:${COLOR.red};cursor:pointer;font-family:${FONT}">
+      清空全部记录
     </button>
   </div>`;
     return profileSection + rows + clearBtn;
@@ -2803,7 +3027,7 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
     const clearBtn = container.querySelector("#ruozhi-clear-learning-inline");
     if (clearBtn) {
       clearBtn.addEventListener("click", () => {
-        if (!confirm("确定要清空所有AI学习记录吗？")) return;
+        if (!confirm("确定清空所有学习记录？")) return;
         clearLearning();
         refreshLearningPanel(container);
       });
@@ -2818,41 +3042,26 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
         const val = profileEdit.value.trim();
         if (!val) return;
         try {
-          const config = JSON.parse(GM_getValue("ruozhi-config", "{}"));
-          config.learnedProfile = val.slice(0, 300);
-          GM_setValue("ruozhi-config", JSON.stringify(config));
-          refreshConfig(config);
+          const cfg = JSON.parse(GM_getValue("ruozhi-config", "{}"));
+          cfg.learnedProfile = val.slice(0, 300);
+          GM_setValue("ruozhi-config", JSON.stringify(cfg));
+          refreshConfig(cfg);
           profileEdit.value = val.slice(0, 300);
-          const toast = document.createElement("div");
-          toast.textContent = "✅ 画像已保存";
-          Object.assign(toast.style, {
-            position: "fixed",
-            bottom: "80px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "#28a745",
-            color: "#fff",
-            padding: "6px 16px",
-            borderRadius: "6px",
-            fontSize: "13px",
-            zIndex: "999999"
-          });
-          document.body.appendChild(toast);
-          setTimeout(() => toast.remove(), 2e3);
+          showToast("画像已保存", 2e3);
         } catch {
         }
       });
     }
     if (profileRegenBtn) {
       profileRegenBtn.addEventListener("click", async () => {
-        profileRegenBtn.textContent = "⏳ 生成中...";
+        profileRegenBtn.textContent = "生成中…";
         profileRegenBtn.style.pointerEvents = "none";
         try {
           await forceRefineProfile();
           refreshLearningPanel(container);
         } catch {
         } finally {
-          profileRegenBtn.textContent = "🔄 重新生成";
+          profileRegenBtn.textContent = "重新生成";
           profileRegenBtn.style.pointerEvents = "";
         }
       });
@@ -2863,62 +3072,260 @@ ${hasProfile ? "重要：以上用户画像优先级高于基础规则。当规�
     contentEl.innerHTML = buildLearningPanelHTML();
     bindLearningEvents(contentEl);
   }
-  function bindKnowledgeEvents(root) {
-    var _a, _b, _c;
-    (_a = root.querySelector("#ruozhi-kb-add")) == null ? void 0 : _a.addEventListener("click", () => {
-      var _a2;
-      const input = root.querySelector("#ruozhi-kb-input");
-      const val = (_a2 = input == null ? void 0 : input.value) == null ? void 0 : _a2.trim();
-      if (!val) return;
-      try {
-        const config = JSON.parse(GM_getValue("ruozhi-config", "{}"));
-        if (!Array.isArray(config.knowledgeBase)) config.knowledgeBase = [];
-        if (config.knowledgeBase.includes(val)) {
-          kbStatus(root, "⚠️ 该条目已存在", "#ffc107");
-          return;
+  const TAG$1 = "[ruozhi-filter]";
+  function foldEl(el, info, verdict, style = "classic") {
+    var _a, _b, _c, _d, _e, _f;
+    try {
+      if (el.style.display === "none") return false;
+      const labelMap = {
+        low: "轻微不适",
+        medium: "违规言论",
+        high: "严重违规",
+        block: "永久拉黑"
+      };
+      const label = labelMap[verdict.severity] ?? "已过滤";
+      const severityAccent = {
+        low: COLOR.muted,
+        medium: COLOR.amber,
+        high: COLOR.red,
+        block: COLOR.purple
+      };
+      const accent = severityAccent[verdict.severity] ?? COLOR.secondary;
+      const showReportBtn = verdict.severity === "medium" || verdict.severity === "high" || verdict.severity === "block";
+      const reportBtnsHTML = showReportBtn ? `<div style="margin-top:8px;display:flex;gap:8px">
+  <button class="ruozhi-copy-reason" style="padding:3px 10px;font-size:11px;border:1px solid ${COLOR.border};border-radius:4px;background:${COLOR.bg};color:${COLOR.secondary};cursor:pointer;font-family:${FONT}">复制理由</button>
+  <button class="ruozhi-report-btn" style="padding:3px 10px;font-size:11px;border:1px solid ${COLOR.red};border-radius:4px;background:${COLOR.bg};color:${COLOR.red};cursor:pointer;font-family:${FONT}">举报</button>
+</div>` : "";
+      const html = (() => {
+        switch (style) {
+          case "classic":
+            return `<div class="ruozhi-folded" style="background:${COLOR.foldBg};border:1px solid ${COLOR.foldBorder};border-radius:4px;padding:8px 12px;margin:4px 0;font-size:12px;color:${COLOR.foldText};cursor:pointer;user-select:none;font-family:${FONT}">
+<span style="margin-right:8px;font-weight:500">${esc(label)}</span><span style="font-weight:500">${esc(info.uname)}</span><span style="margin:0 8px;color:${COLOR.foldMuted}">|</span><span style="font-size:11px;color:${COLOR.foldMuted}">${esc(verdict.reason)}</span><span class="ruozhi-fold-arrow" data-collapsed="展开" data-expanded="收起" style="float:right;font-size:10px;color:${COLOR.foldMuted};line-height:1.8">展开</span>
+</div><div class="ruozhi-original" style="display:none;padding:8px 12px;background:${COLOR.surface};border-left:3px solid ${COLOR.foldBorder};margin:4px 0;border-radius:0 4px 4px 0;font-size:13px;font-family:${FONT}">
+<div style="margin-bottom:6px;font-size:11px;color:${COLOR.secondary}">AI 判定: <span style="font-weight:500">${esc(verdict.reason)}</span></div>
+<div style="color:${COLOR.text};white-space:pre-wrap;word-break:break-word;line-height:1.5">${esc(info.message)}</div>${reportBtnsHTML}</div>`;
+          case "dim": {
+            const secHex = COLOR.secondary;
+            const mutedHex = COLOR.muted;
+            const surfHex = COLOR.surface;
+            return `<div class="ruozhi-folded" style="padding:2px 8px;margin:1px 0;font-size:9px;color:${mutedHex};cursor:pointer;user-select:none;font-family:${FONT};line-height:1.2;transition:color .15s,background .15s;border-radius:4px"
+  onmouseenter="this.style.color='${secHex}';this.style.background='${surfHex}'" onmouseleave="this.style.color='${mutedHex}';this.style.background='transparent'"
+<span style="opacity:0.5">&middot;&middot;&middot;</span>
+</div><div class="ruozhi-original" style="display:none;padding:4px 8px;margin:0 0 2px 0;font-size:11px;color:${COLOR.secondary};background:${COLOR.surface};border-left:2px solid ${COLOR.border};border-radius:0 4px 4px 0;font-family:${FONT}">
+<div style="margin-bottom:2px;font-size:10px;color:${COLOR.muted}">${esc(verdict.reason)}</div>
+<div style="color:${COLOR.secondary};white-space:pre-wrap;word-break:break-word">${esc(info.message)}</div>${reportBtnsHTML}</div>`;
+          }
+          default:
+            return `<div class="ruozhi-folded" style="background:${COLOR.surface};border-left:3px solid ${accent};padding:6px 12px;margin:4px 0;font-size:12px;color:${COLOR.secondary};cursor:pointer;user-select:none;font-family:${FONT}">
+<span style="margin-right:6px">${esc(label)}</span><span style="color:${COLOR.text}">${esc(info.uname)}</span><span class="ruozhi-fold-arrow" data-collapsed="+" data-expanded="-" style="float:right;font-size:12px;color:${COLOR.muted}">+</span>
+</div><div class="ruozhi-original" style="display:none;padding:6px 12px;background:${COLOR.surface};border-left:3px solid ${COLOR.border};margin:0 0 4px 0;font-size:12px;color:${COLOR.secondary};font-family:${FONT}">
+<div style="margin-bottom:4px;font-size:11px;color:${COLOR.muted}">AI 判定: ${esc(verdict.reason)}</div>
+<div style="color:${COLOR.secondary};white-space:pre-wrap;word-break:break-word">${esc(info.message)}</div>${reportBtnsHTML}</div>`;
         }
-        config.knowledgeBase.push(val);
-        GM_setValue("ruozhi-config", JSON.stringify(config));
-        refreshConfig(config);
-        input.value = "";
-        refreshKBList(root);
-        kbStatus(root, "✅ 已添加", "#28a745");
-      } catch {
-      }
-    });
-    (_b = root.querySelector("#ruozhi-kb-input")) == null ? void 0 : _b.addEventListener("keydown", (e) => {
-      var _a2;
-      if (e.key === "Enter") {
-        (_a2 = root.querySelector("#ruozhi-kb-add")) == null ? void 0 : _a2.click();
-      }
-    });
-    (_c = root.querySelector("#ruozhi-kb-list")) == null ? void 0 : _c.addEventListener("click", (e) => {
-      const btn = e.target.closest(".ruozhi-kb-del");
-      if (!btn) return;
-      const idx = parseInt(btn.dataset.index ?? "-1");
-      if (idx < 0) return;
-      try {
-        const config = JSON.parse(GM_getValue("ruozhi-config", "{}"));
-        if (Array.isArray(config.knowledgeBase)) {
-          config.knowledgeBase.splice(idx, 1);
-          GM_setValue("ruozhi-config", JSON.stringify(config));
-          refreshConfig(config);
-          refreshKBList(root);
+      })();
+      const wrapper = document.createElement("div");
+      wrapper.innerHTML = html;
+      const foldElDiv = wrapper.firstElementChild;
+      const origElDiv = foldElDiv.nextElementSibling;
+      (_a = el.parentNode) == null ? void 0 : _a.insertBefore(foldElDiv, el);
+      (_b = el.parentNode) == null ? void 0 : _b.insertBefore(origElDiv, el);
+      el.style.display = "none";
+      foldElDiv.addEventListener("click", () => {
+        const collapsed = origElDiv.style.display === "none";
+        origElDiv.style.display = collapsed ? "block" : "none";
+        const arrow = foldElDiv.querySelector(
+          ".ruozhi-fold-arrow"
+        );
+        if (arrow) {
+          arrow.textContent = collapsed ? arrow.dataset.expanded ?? arrow.textContent : arrow.dataset.collapsed ?? arrow.textContent;
         }
-      } catch {
+      });
+      const blRecord = isBlacklistedSync(info.mid, info.uname);
+      if (blRecord) {
+        origElDiv.insertAdjacentHTML(
+          "beforeend",
+          `<div style="margin-top:8px;display:flex;gap:8px">
+  <button class="ruozhi-unblock-btn" style="padding:3px 10px;font-size:11px;border:1px solid ${COLOR.green};border-radius:4px;background:${COLOR.bg};color:${COLOR.green};cursor:pointer;font-family:${FONT}">取消拉黑</button>
+</div>`
+        );
+        (_c = origElDiv.querySelector(".ruozhi-unblock-btn")) == null ? void 0 : _c.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          try {
+            const hash = commentHash(info.message, info.mid);
+            await removeFromBlacklist(blRecord.mid);
+            await deleteCommentFromCache(hash);
+            recordLearning({
+              type: "unblock",
+              message: info.message,
+              aiReason: blRecord.reason,
+              aiSeverity: blRecord.severity,
+              uname: info.uname,
+              videoTitle: currentContext.videoTitle
+            });
+            el.style.display = "";
+            foldElDiv.remove();
+            origElDiv.remove();
+          } catch (err) {
+            console.error(TAG$1, "Unblock failed:", err);
+          }
+        });
+      } else {
+        origElDiv.insertAdjacentHTML(
+          "beforeend",
+          `<div style="margin-top:8px;display:flex;gap:8px">
+  <button class="ruozhi-misjudge-btn" style="padding:3px 10px;font-size:11px;border:1px solid ${COLOR.border};border-radius:4px;background:${COLOR.bg};color:${COLOR.secondary};cursor:pointer;font-family:${FONT}">误判 · 展开</button>
+</div>`
+        );
+        (_d = origElDiv.querySelector(".ruozhi-misjudge-btn")) == null ? void 0 : _d.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const hash = commentHash(info.message, info.mid);
+          await deleteCommentFromCache(hash);
+          recordLearning({
+            type: "misjudge",
+            message: info.message,
+            aiReason: verdict.reason,
+            aiSeverity: verdict.severity,
+            uname: info.uname,
+            videoTitle: currentContext.videoTitle
+          });
+          el.style.display = "";
+          foldElDiv.remove();
+          origElDiv.remove();
+        });
       }
-    });
-  }
-  function kbStatus(root, msg, color) {
-    const el = root.querySelector("#ruozhi-kb-status");
-    if (el) {
-      el.textContent = msg;
-      el.style.color = color;
+      if (showReportBtn) {
+        (_e = origElDiv.querySelector(".ruozhi-copy-reason")) == null ? void 0 : _e.addEventListener("click", (e) => {
+          e.stopPropagation();
+          copyReason(verdict.reason);
+        });
+        (_f = origElDiv.querySelector(".ruozhi-report-btn")) == null ? void 0 : _f.addEventListener("click", (e) => {
+          e.stopPropagation();
+          triggerReport(el, verdict.reason);
+        });
+      }
+      return true;
+    } catch {
+      return false;
     }
+  }
+  function hideEl(el) {
+    try {
+      el.style.display = "none";
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  const blacklistButtonInjected = /* @__PURE__ */ new WeakSet();
+  function blBtnStyle() {
+    return {
+      position: "relative",
+      zIndex: "1",
+      float: "right",
+      marginTop: "4px",
+      marginRight: "4px",
+      padding: "1px 8px",
+      fontSize: "10px",
+      color: COLOR.muted,
+      background: COLOR.bg,
+      border: `1px solid ${COLOR.border}`,
+      borderRadius: "8px",
+      cursor: "pointer",
+      userSelect: "none",
+      fontFamily: FONT,
+      lineHeight: "16px",
+      whiteSpace: "nowrap",
+      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+      transition: "color 0.15s, border-color 0.15s, background 0.15s"
+    };
+  }
+  function blBtnHover() {
+    return {
+      color: COLOR.red,
+      borderColor: COLOR.red,
+      background: COLOR.redBg
+    };
+  }
+  function blBtnDone() {
+    return {
+      color: COLOR.red,
+      borderColor: COLOR.redBg,
+      background: COLOR.redBg,
+      boxShadow: "none",
+      cursor: "default",
+      pointerEvents: "none"
+    };
+  }
+  function applyStyles(el, styles) {
+    Object.assign(el.style, styles);
+  }
+  function injectManualBlacklistButton(el, info) {
+    if (blacklistButtonInjected.has(el)) return;
+    blacklistButtonInjected.add(el);
+    const parent = el.parentNode;
+    if (!parent) return;
+    const btn = document.createElement("span");
+    btn.textContent = "拉黑";
+    btn.title = `将 ${info.uname} 加入黑名单`;
+    applyStyles(btn, blBtnStyle());
+    parent.insertBefore(btn, el);
+    btn.addEventListener("mouseenter", () => {
+      if (btn.dataset.done !== "1") applyStyles(btn, blBtnHover());
+    });
+    btn.addEventListener("mouseleave", () => {
+      if (btn.dataset.done !== "1") applyStyles(btn, blBtnStyle());
+    });
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const config = getConfig();
+      if (config.blacklistConfirm !== false && !confirm(
+        `确定要将用户 "${info.uname}" 加入黑名单吗？
+该用户的所有评论将被隐藏。`
+      )) {
+        return;
+      }
+      try {
+        await addToBlacklist({
+          mid: info.mid,
+          uname: info.uname,
+          rpid: info.rpid,
+          message: info.message,
+          reason: "[手动拉黑]",
+          videoTitle: currentContext.videoTitle,
+          videoUrl: window.location.href,
+          timestamp: Date.now(),
+          severity: "block",
+          source: "manual"
+        });
+        recordLearning({
+          type: "manual_blacklist",
+          message: info.message,
+          uname: info.uname,
+          videoTitle: currentContext.videoTitle
+        });
+        log(TAG$1, `Manual block: ${info.uname}`);
+        if (config.foldMode === "none") {
+          hideEl(el);
+        } else {
+          foldEl(
+            el,
+            info,
+            { reason: "[手动拉黑]", severity: "block" },
+            config.foldMode
+          );
+        }
+        btn.dataset.done = "1";
+        btn.textContent = "已拉黑";
+        applyStyles(btn, blBtnDone());
+      } catch (err) {
+        console.error(TAG$1, "Manual block failed:", err);
+      }
+    });
   }
   const TAG = "[ruozhi-filter]";
   async function main() {
-    log(TAG, "🚀 插件启动中...");
+    log(TAG, "Plugin starting...");
     setRefineCallback(refineProfileNow);
     initMemoryCache().catch(() => {
     });

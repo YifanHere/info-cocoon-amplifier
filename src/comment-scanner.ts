@@ -7,9 +7,9 @@ import { extractVideoInfo } from "./video-info";
 import { getCommentRoot, findCommentElements } from "./dom-utils";
 import type { PendingComment } from "./comment-extractor";
 import { extractComment } from "./comment-extractor";
-import { injectManualBlacklistButton } from "./manual-blacklist";
+import { injectManualBlacklistButton } from "./ui";
 import { log } from "./debug";
-import { foldEl, hideEl } from "./fold-ui";
+import { foldEl, hideEl } from "./ui";
 import { ruozhiStats, saveStats, notifyStatsUpdate, resetStats } from "./stats";
 import { filterReplies } from "./filter";
 import { fullPageDiagnostic, inspectShadowRoot } from "./diagnostics";
@@ -47,14 +47,14 @@ function skipAI(info: PendingComment): boolean {
 function scanPage(): void {
   const root = getCommentRoot();
   if (!root) {
-    log(TAG, "🔍 scanPage: 未找到评论区根节点");
+    log(TAG, "scanPage: 未找到评论区根节点");
     return;
   }
 
   const items = findCommentElements(root);
   log(
     TAG,
-    `🔍 scanPage: 找到 ${items.length} 个评论元素, root=${root === document ? "document" : (root as Element).tagName || "shadowRoot"}`,
+    `scanPage: 找到 ${items.length} 个评论元素, root=${root === document ? "document" : (root as Element).tagName || "shadowRoot"}`,
   );
   if (items.length === 0) return;
 
@@ -156,7 +156,7 @@ async function flushBatch(): Promise<void> {
 
   const batch = pendingBatch.splice(0);
 
-  log(TAG, `🚀 AI判定: ${batch.length} 条评论`);
+  log(TAG, `AI judging: ${batch.length} 条评论`);
 
   const config = getConfig();
   if (!currentContext.videoTitle) extractVideoInfo();
@@ -186,7 +186,7 @@ async function flushBatch(): Promise<void> {
     ruozhiStats.totalScanned += batch.length;
 
     if (result.violations.size > 0) {
-      log(TAG, `🛡️ ${result.violations.size}/${batch.length} 条违规`);
+      log(TAG, ` ${result.violations.size}/${batch.length} 条违规`);
       let cleaned = 0;
       for (const [rpid, v] of result.violations) {
         const p = batch.find((x) => x.rpid === rpid);
@@ -216,7 +216,7 @@ async function flushBatch(): Promise<void> {
     // 持久化统计
     saveStats(ruozhiStats);
   } catch (err) {
-    console.error(TAG, "❌ AI失败:", err);
+    console.error(TAG, "AI failure:", err);
   } finally {
     isFlushing = false;
   }
@@ -245,7 +245,7 @@ function watchNewComments(): void {
     childList: true,
     subtree: true,
   });
-  log(TAG, "👁️ MutationObserver 已绑定到评论根节点");
+  log(TAG, " MutationObserver 已绑定到评论根节点");
 
   // 绑定后立即扫描一次（评论可能已存在但 observer 尚未触发）
   scanPage();

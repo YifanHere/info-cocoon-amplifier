@@ -34,6 +34,14 @@ export function getConfig(): FilterConfig {
           parsed.filterDimensions;
         delete parsed.filterDimensions;
       }
+      // 兼容旧版：无 theme 字段
+      if (!parsed.theme) {
+        parsed.theme = "claude";
+      }
+      // 兼容旧版：无 fontScale 字段
+      if (parsed.fontScale === undefined) {
+        parsed.fontScale = 1.0;
+      }
       // ★ 关键修复：始终合并 DEFAULT_CONFIG，确保新增字段不会为 undefined
       const merged: FilterConfig = { ...DEFAULT_CONFIG, ...parsed };
       setDevMode(merged.devMode);
@@ -41,12 +49,13 @@ export function getConfig(): FilterConfig {
       return merged;
     }
   } catch (e) {
-    console.error("[ruozhi-filter]", "❌ 配置加载失败:", e);
+    console.error("[ruozhi-filter]", "Config load failed:", e);
   }
   return {
     apiKey: "",
     apiEndpoint: "https://api.deepseek.com/chat/completions",
     model: "deepseek-chat",
+    theme: "github",
     prompt: "",
     foldMode: "classic" as const,
     enableAI: true,
@@ -63,6 +72,7 @@ export function getConfig(): FilterConfig {
     learningCorrections: [],
     lastRefinedCount: 0,
     knowledgeBase: [],
+    fontScale: 1.0,
   };
 }
 

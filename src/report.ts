@@ -4,6 +4,7 @@
 
 const TAG = "[ruozhi-filter]";
 import { log, warn } from "./debug";
+import { showToast } from "./ui";
 
 async function copyToClipboard(text: string): Promise<boolean> {
   try {
@@ -42,31 +43,6 @@ function findByText(root: ParentNode, text: string): Element | null {
   return walk(
     root instanceof Element ? ((root as Element).shadowRoot ?? root) : root,
   );
-}
-
-function showToast(msg: string, d = 2500): void {
-  const t = document.createElement("div");
-  t.textContent = msg;
-  Object.assign(t.style, {
-    position: "fixed",
-    bottom: "60px",
-    left: "50%",
-    transform: "translateX(-50%)",
-    background: "rgba(0,0,0,0.82)",
-    color: "#fff",
-    padding: "10px 20px",
-    borderRadius: "8px",
-    fontSize: "14px",
-    zIndex: "999999",
-    fontFamily: "system-ui, sans-serif",
-    pointerEvents: "none",
-    transition: "opacity 0.3s",
-  });
-  document.body.appendChild(t);
-  setTimeout(() => {
-    t.style.opacity = "0";
-    setTimeout(() => t.remove(), 300);
-  }, d);
 }
 
 function waitFor(cb: () => boolean, ms: number): Promise<boolean> {
@@ -123,12 +99,12 @@ export async function triggerReport(
   reason: string,
 ): Promise<{ opened: boolean; reasonCopied: boolean }> {
   const reasonCopied = await copyToClipboard(reason);
-  if (reasonCopied) showToast("✅ 已复制 AI 判定理由，请粘贴到举报框 (Cmd+V)");
+  if (reasonCopied) showToast("已复制 AI 判定理由，请粘贴到举报框 (Cmd+V)");
 
   const renderer = findCommentRenderer(commentEl as HTMLElement);
   log(
     TAG,
-    "🔍 评论容器:",
+    "Comment container:",
     renderer.tagName.toLowerCase(),
     "| shadowRoot:",
     !!renderer.shadowRoot,
@@ -144,7 +120,7 @@ export async function triggerReport(
   try {
     const sr = renderer.shadowRoot;
     if (!sr) {
-      warn(TAG, "⚠️ 无 shadowRoot:", renderer.tagName);
+      warn(TAG, "No shadowRoot:", renderer.tagName);
       return { opened: false, reasonCopied };
     }
 
@@ -152,7 +128,7 @@ export async function triggerReport(
     if (!actionBar || !(actionBar as HTMLElement).shadowRoot) {
       warn(
         TAG,
-        "⚠️ 未找到 action-buttons",
+        "No action-buttons found",
         "| 子元素:",
         [...sr.children].map((c) => (c as HTMLElement).tagName.toLowerCase()),
       );
@@ -164,11 +140,11 @@ export async function triggerReport(
       "#more button",
     ) as HTMLElement | null;
     if (!moreBtn) {
-      warn(TAG, "⚠️ 未找到「更多」按钮");
+      warn(TAG, "No 'More' button found");
       return { opened: false, reasonCopied };
     }
 
-    log(TAG, "🔍 点击「更多」...");
+    log(TAG, "Clicking 'More'...");
     moreBtn.click();
 
     const ok = await waitFor(() => {
@@ -183,7 +159,7 @@ export async function triggerReport(
       );
     }, 2000);
     if (!ok) {
-      warn(TAG, "⚠️ 菜单未显示");
+      warn(TAG, "Menu did not appear");
       return { opened: false, reasonCopied };
     }
 
@@ -193,14 +169,14 @@ export async function triggerReport(
       "举报",
     ) as HTMLElement | null;
     if (!reportLi) {
-      warn(TAG, "⚠️ 菜单中未找到「举报」");
+      warn(TAG, "No 'Report' found in menu");
       return { opened: false, reasonCopied };
     }
 
-    log(TAG, "🔍 点击「举报」...");
+    log(TAG, "Clicking 'Report'...");
     reportLi.click();
     waitAndFillReportForm(reason);
-    log(TAG, "✅ 已触发原生举报");
+    log(TAG, "Native report triggered");
     return { opened: true, reasonCopied };
   } finally {
     renderer.style.display = prevDisplay;
@@ -235,7 +211,7 @@ function waitAndFillReportForm(reason: string): void {
             ) as HTMLElement | null;
             if (sp) {
               sp.click();
-              log(TAG, "✅ 已选中「引战、不友善言论」");
+              log(TAG, "Selected 'Provocative/unfriendly' category");
               break;
             }
           }
@@ -259,7 +235,7 @@ function waitAndFillReportForm(reason: string): void {
       ta.value = reason.slice(0, 200);
       ta.dispatchEvent(new Event("input", { bubbles: true }));
       ta.dispatchEvent(new Event("change", { bubbles: true }));
-      log(TAG, "✅ 已自动填写举报理由");
+      log(TAG, "Report reason auto-filled");
       return;
     }
     if (Date.now() - s < 4000) setTimeout(f, 300);
@@ -269,6 +245,6 @@ function waitAndFillReportForm(reason: string): void {
 
 export async function copyReason(reason: string): Promise<boolean> {
   const ok = await copyToClipboard(reason);
-  if (ok) showToast("✅ 已复制 AI 判定理由，请粘贴到举报框 (Cmd+V)");
+  if (ok) showToast("已复制 AI 判定理由，请粘贴到举报框 (Cmd+V)");
   return ok;
 }

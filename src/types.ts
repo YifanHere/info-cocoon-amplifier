@@ -64,12 +64,17 @@ export interface LearningCorrection {
   videoTitle?: string;
 }
 
+/** 主题名称 */
+export type ThemeName = "claude" | "github" | "dark";
+
 /** 用户自定义过滤规则 */
 export interface FilterConfig {
   apiKey: string;
   apiEndpoint: string;
   model: string;
   prompt: string;
+  /** UI 主题 */
+  theme: ThemeName;
   /** 折叠样式: "none"=完全隐藏, "classic"=黄色警告条, "light"=极简灰线, "dim"=隐形弱化 */
   foldMode: "none" | "classic" | "light" | "dim";
   /** 是否启用AI过滤 */
@@ -100,6 +105,8 @@ export interface FilterConfig {
   lastRefinedCount: number;
   /** 知识库：用户手动添加的辅助判定条目（如"XX是对XX的歧视性称呼"） */
   knowledgeBase: string[];
+  /** 全局字体缩放系数 (0.8 ~ 1.5) */
+  fontScale: number;
 }
 
 /** AI判定结果: 单条评论的违规判定 */
@@ -171,6 +178,7 @@ export const DEFAULT_CONFIG: FilterConfig = {
   apiKey: "",
   apiEndpoint: "https://api.deepseek.com/chat/completions",
   model: "deepseek-chat",
+  theme: "github",
   prompt: `请帮我识别以下评论中，具有明显性别对立、引战、人身攻击、煽动性、仇恨言论的内容。
 
 违规判定维度：
@@ -195,4 +203,5 @@ export const DEFAULT_CONFIG: FilterConfig = {
   learningCorrections: [],
   lastRefinedCount: 0,
   knowledgeBase: [],
+  fontScale: 1.0,
 };

@@ -8,8 +8,7 @@
 //   dom-utils.ts       - DOM 工具函数
 //   diagnostics.ts     - 页面诊断/调试
 //   comment-extractor.ts - 评论提取
-//   fold-ui.ts         - 评论折叠/隐藏 UI
-//   manual-blacklist.ts - 手动拉黑按钮
+//   ui.ts              - 所有 UI 代码 (FAB/面板/折叠/拉黑按钮/toast)
 //   comment-scanner.ts - 扫描器核心（批处理+观察器+启动）
 // ============================================================
 
